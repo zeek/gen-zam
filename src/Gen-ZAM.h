@@ -391,7 +391,7 @@ protected:
 	void InstantiateOp(const string& m, const vector<ZAM_OperandType>& ot, ZAM_InstClass zc);
 
 	// Generates the "assignment-less" version of the given op-code.
-	void GenAssignmentlessVersion(string op);
+	void GenAssignmentlessVersion(const string& op);
 
 	// Generates the method 'm' for an operation, where "suffix" is
 	// a (potentially empty) string differentiating the method from
@@ -403,7 +403,7 @@ protected:
 	// Generates the main logic of an operation's method, given the
 	// specific operand types, an associated suffix for differentiating
 	// ZAM instructions, and the instruction class.
-	void InstantiateMethodCore(const vector<ZAM_OperandType>& ot, string suffix, ZAM_InstClass zc);
+	void InstantiateMethodCore(const vector<ZAM_OperandType>& ot, const string& suffix, ZAM_InstClass zc);
 
 	// Generates the specific code to create a ZInst for the given
 	// operation, operands, parameters to "GenInst", and suffix and
@@ -668,8 +668,8 @@ protected:
 
 	// Instantiates versions of the operation that have a constant
 	// as the first, second, or third operand ...
-	void InstantiateC1(const vector<ZAM_OperandType>& ots, int arity, bool do_vec = false);
-	void InstantiateC2(const vector<ZAM_OperandType>& ots, int arity);
+	void InstantiateC1(const vector<ZAM_OperandType>& ots, size_t arity, bool do_vec = false);
+	void InstantiateC2(const vector<ZAM_OperandType>& ots, size_t arity);
 	void InstantiateC3(const vector<ZAM_OperandType>& ots);
 
 	// ... or if all of the operands are non-constant.
