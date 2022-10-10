@@ -273,7 +273,7 @@ void ZAM_OpTemplate::UnaryInstantiate()
 void ZAM_OpTemplate::Parse(const string& attr, const string& line, const Words& words)
 	{
 	int num_args = -1; // -1 = don't enforce
-	int nwords = words.size();
+	int nwords = static_cast<int>(words.size());
 
 	if ( attr == "type" )
 		{
@@ -505,7 +505,7 @@ void ZAM_OpTemplate::InstantiateOp(const string& method, const vector<ZAM_Operan
 		}
 	}
 
-void ZAM_OpTemplate::GenAssignmentlessVersion(string op)
+void ZAM_OpTemplate::GenAssignmentlessVersion(const string& op)
 	{
 	EmitTo(AssignFlavor);
 	Emit("assignmentless_op[" + op + "] = " + AssignmentLessOp() + ";");
@@ -544,7 +544,7 @@ void ZAM_OpTemplate::InstantiateMethod(const string& m, const string& suffix,
 	NL();
 	}
 
-void ZAM_OpTemplate::InstantiateMethodCore(const vector<ZAM_OperandType>& ot, string suffix,
+void ZAM_OpTemplate::InstantiateMethodCore(const vector<ZAM_OperandType>& ot, const string& suffix,
                                            ZAM_InstClass zc)
 	{
 	if ( HasCustomMethod() )
@@ -885,7 +885,7 @@ static unordered_map<char, ZAM_ExprType> expr_type_names = {
 static unordered_map<ZAM_ExprType, char> expr_name_types;
 
 ZAM_ExprOpTemplate::ZAM_ExprOpTemplate(ZAMGen* _g, string _base_name)
-	: ZAM_OpTemplate(_g, _base_name)
+	: ZAM_OpTemplate(_g, std::move(_base_name))
 	{
 	static bool did_map_init = false;
 
@@ -1015,7 +1015,7 @@ void ZAM_ExprOpTemplate::Instantiate()
 		InstantiateV(op_types);
 	}
 
-void ZAM_ExprOpTemplate::InstantiateC1(const vector<ZAM_OperandType>& ots, int arity, bool do_vec)
+void ZAM_ExprOpTemplate::InstantiateC1(const vector<ZAM_OperandType>& ots, size_t arity, bool do_vec)
 	{
 	string args = "lhs, r1->AsConstExpr()";
 
@@ -1050,7 +1050,7 @@ void ZAM_ExprOpTemplate::InstantiateC1(const vector<ZAM_OperandType>& ots, int a
 		}
 	}
 
-void ZAM_ExprOpTemplate::InstantiateC2(const vector<ZAM_OperandType>& ots, int arity)
+void ZAM_ExprOpTemplate::InstantiateC2(const vector<ZAM_OperandType>& ots, size_t arity)
 	{
 	string args = "lhs, r1->AsNameExpr(), r2->AsConstExpr()";
 
@@ -1339,10 +1339,10 @@ void ZAM_ExprOpTemplate::InstantiateEval(const vector<ZAM_OperandType>& ot_orig,
 		}
 
 	if ( zc != ZIC_VEC )
-		for ( auto em1 : eval_mixed_set )
+		for ( const auto& em1 : eval_mixed_set )
 			{
 			auto et1 = em1.first;
-			for ( auto em2 : em1.second )
+			for ( const auto& em2 : em1.second )
 				{
 				auto et2 = em2.first;
 
@@ -1539,7 +1539,7 @@ void ZAM_UnaryExprOpTemplate::BuildInstruction(const vector<ZAM_OperandType>& ot
 	}
 
 ZAM_AssignOpTemplate::ZAM_AssignOpTemplate(ZAMGen* _g, string _base_name)
-	: ZAM_UnaryExprOpTemplate(_g, _base_name)
+	: ZAM_UnaryExprOpTemplate(_g, std::move(_base_name))
 	{
 	// Assignments apply to every valid form of ExprType.
 	for ( auto& etn : expr_type_names )
@@ -1909,7 +1909,7 @@ string TemplateInput::SkipWords(const string& line, int n) const
 void TemplateInput::Gripe(const char* msg, const string& input) const
 	{
 	auto input_s = input.c_str();
-	int n = strlen(input_s);
+	size_t n = strlen(input_s);
 
 	fprintf(stderr, "%s, line %d: %s - %s", loc.file_name, loc.line_num, msg, input_s);
 	if ( n == 0 || input_s[n - 1] != '\n' )
@@ -2118,7 +2118,7 @@ void ZAMGen::InitSwitch(EmitTarget et, string desc)
 	Emit(et, "{");
 	Emit(et, "switch ( rhs->Tag() ) {");
 
-	switch_targets[et] = desc;
+	switch_targets[et] = std::move(desc);
 	}
 
 void ZAMGen::CloseEmitTargets()
