@@ -3,11 +3,14 @@ project(Gen-ZAM C CXX)
 
 include(cmake/CommonCMakeConfig.cmake)
 
-include(RequireCXX17)
+include(RequireCXXStd)
 
 set(GEN_ZAM_SRCS src/Gen-ZAM.cc)
 set(GEN_ZAM_HEADERS src/Gen-ZAM.h)
 add_executable(gen-zam ${GEN_ZAM_SRCS} ${GEN_ZAM_HEADERS})
+target_compile_features(gen-zam PRIVATE ${ZEEK_CXX_STD})
+set_target_properties(gen-zam PROPERTIES CXX_EXTENSIONS OFF)
+
 install(TARGETS gen-zam DESTINATION bin)
 
 if (CMAKE_BUILD_TYPE)
