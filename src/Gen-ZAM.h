@@ -287,12 +287,12 @@ protected:
 	// Specify/fetch the parameter (operand) from which to take the
 	// primary type of this operation.
 	void SetTypeParam(int param) { type_param = param; }
-	int GetTypeParam() const { return type_param; }
+	const auto& GetTypeParam() const { return type_param; }
 
 	// Specify/fetch the parameter (operand) from which to take the
 	// secondary type of this operation.
 	void SetType2Param(int param) { type2_param = param; }
-	int GetType2Param() const { return type2_param; }
+	const auto& GetType2Param() const { return type2_param; }
 
 	// Tracking of assignment values (C++ variables that hold the
 	// value that should be assigned to usual frame slot).
@@ -513,8 +513,8 @@ protected:
 
 	// Tracks the result of ExtractTypeParam() used for "type" and
 	// "type2" attributes.
-	int type_param = 0; // 0 = not set
-	int type2_param = 0;
+	std::optional<int> type_param;
+	std::optional<int> type2_param;
 
 	// If non-empty, the value to assign to the target in an assignment
 	// operation.

@@ -436,7 +436,7 @@ string ZAM_OpTemplate::GatherEval()
 int ZAM_OpTemplate::ExtractTypeParam(const string& arg)
 	{
 	if ( arg == "$$" )
-		return 1;
+		return 0;
 
 	if ( arg[0] != '$' )
 		g->Gripe("bad set-type parameter, should be $n", arg);
@@ -446,9 +446,7 @@ int ZAM_OpTemplate::ExtractTypeParam(const string& arg)
 	if ( param <= 0 || param > 2 )
 		g->Gripe("bad set-type parameter, should be $1 or $2", arg);
 
-	// Convert operand to underlying instruction element, i.e., add
-	// one to account for the $$ assignment slot.
-	return param + 1;
+	return param;
 	}
 
 // Maps an operand type to a character mnemonic used to distinguish
@@ -583,13 +581,13 @@ void ZAM_OpTemplate::InstantiateMethodCore(const vector<ZAM_OperandType>& ot, co
 	ArgsManager args(ot, zc);
 	BuildInstruction(ot, args.Params(), full_suffix, zc);
 
-	auto tp = GetTypeParam();
-	if ( tp > 0 )
-		Emit("z.SetType(" + args.NthParam(tp - 1) + "->GetType());");
+	auto& tp = GetTypeParam();
+	if ( tp )
+		Emit("z.SetType(" + args.NthParam(*tp) + "->GetType());");
 
-	auto tp2 = GetType2Param();
-	if ( tp2 > 0 )
-		Emit("z.t2 = " + args.NthParam(tp2 - 1) + "->GetType();");
+	auto& tp2 = GetType2Param();
+	if ( tp2 )
+		Emit("z.t2 = " + args.NthParam(*tp2) + "->GetType();");
 	}
 
 void ZAM_OpTemplate::BuildInstruction(const vector<ZAM_OperandType>& ot, const string& params,
