@@ -1836,11 +1836,6 @@ void ZAM_InternalBinaryOpTemplate::InstantiateEval(const vector<ZAM_OperandType>
 	{
 	assert(ot.size() == 3);
 
-	string prelude = "auto op1 = $1;\n";
-	prelude += "auto op2 = $2;\n";
-
-	auto eval = prelude + GetEval();
-
 	auto& ets = ExprTypes();
 	if ( ets.size() != 1 )
 		g->Gripe("internal-binary-op's must have one op-type", op_loc);
@@ -1858,7 +1853,7 @@ void ZAM_InternalBinaryOpTemplate::InstantiateEval(const vector<ZAM_OperandType>
 	accessors.push_back(op1_accessor);
 	accessors.push_back(op2_accessor);
 
-	eval = ExpandParams(ot, eval, accessors);
+	auto eval = ExpandParams(ot, GetEval(), accessors);
 
 	ZAM_OpTemplate::InstantiateEval(Eval, OpSuffix(ot) + suffix, eval, zc);
 	}
