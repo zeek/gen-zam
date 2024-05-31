@@ -1092,6 +1092,13 @@ void ZAM_ExprOpTemplate::Parse(const string& attr, const string& line, const Wor
 		SetPreEval(eval);
 		}
 
+	else if ( attr == "explicit-result-type" )
+		{
+		if ( words.size() != 1 )
+			g->Gripe("extraneous argument to explicit-result-type", line);
+		SetHasExplicitResultType();
+		}
+
 	else
 		// Not an attribute specific to expr-op's.
 		ZAM_OpTemplate::Parse(attr, line, words);
@@ -1246,6 +1253,8 @@ void ZAM_ExprOpTemplate::BuildInstructionCore(const string& params, const string
 		{
 		if ( et == ZAM_EXPR_TYPE_DEFAULT )
 			do_default = true;
+		else if ( et == ZAM_EXPR_TYPE_NONE )
+			continue;
 		else
 			GenMethodTest(et, et, params, suffix, ++ncases > 1, zc);
 		}
@@ -1437,6 +1446,9 @@ void ZAM_ExprOpTemplate::InstantiateEval(const vector<ZAM_OperandType>& ot_orig,
 
 	for ( auto et : expr_types )
 		{
+		if ( et == ZAM_EXPR_TYPE_NONE && GetEval().empty() )
+			continue;
+
 		auto is_def = eval_set.count(et) == 0;
 		string eval = is_def ? GetEval() : eval_set[et];
 		auto lhs_et = IsConditionalOp() ? ZAM_EXPR_TYPE_INT : et;
@@ -1569,13 +1581,6 @@ void ZAM_UnaryExprOpTemplate::Parse(const string& attr, const string& line, cons
 			g->Gripe("extraneous argument to no-const", line);
 
 		SetNoConst();
-		}
-
-	else if ( attr == "explicit-result-type" )
-		{
-		if ( words.size() != 1 )
-			g->Gripe("extraneous argument to explicit-result-type", line);
-		SetHasExplicitResultType();
 		}
 
 	else
