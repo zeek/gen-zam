@@ -1917,18 +1917,7 @@ void ZAM_InternalOpTemplate::Parse(const string& attr, const string& line, const
 	string func = "z.aux->func";
 
 	if ( n == 1 )
-		{
-		eval += "args.push_back(";
-#if 0
-		if ( op_types[arg_offset] == ZAM_OT_CONSTANT )
-			eval += "z.c";
-		else
-			eval += "frame[z.v" + to_string(arg_slot) + "]";
-#endif
-		eval = "$1";
-
-		eval += ".ToVal(z.t));\n";
-		}
+		eval += "args.push_back($1.ToVal(z.t));\n";
 
 	else if ( n != 0 )
 		{
