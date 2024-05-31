@@ -608,7 +608,7 @@ static bool skippable_ot(ZAM_OperandType ot)
 	return ot == ZAM_OT_EVENT_HANDLER || ot == ZAM_OT_AUX || ot == ZAM_OT_LIST;
 	}
 
-string ZAM_OpTemplate::ExpandParams(const vector<ZAM_OperandType>& ot, string eval)
+string ZAM_OpTemplate::ExpandParams(const vector<ZAM_OperandType>& ot, string eval, const vector<string>& accessors)
 	{
 	auto have_target = eval.find("$$") != string::npos;
 
@@ -683,6 +683,9 @@ string ZAM_OpTemplate::ExpandParams(const vector<ZAM_OperandType>& ot, string ev
 			break;
 		}
 
+		if ( ! accessors.empty() && ! accessors[i].empty() )
+			op += "." + accessors[i];
+
 		string pat;
 		if ( i == 0 && have_target )
 			pat = "\\$\\$";
@@ -704,7 +707,8 @@ void ZAM_OpTemplate::InstantiateEval(const vector<ZAM_OperandType>& ot, const st
 	if ( NoEval() )
 		return;
 
-	auto eval = ExpandParams(ot, GetEval());
+	vector<string> no_accessors;
+	auto eval = ExpandParams(ot, GetEval(), no_accessors);
 
 	InstantiateEval(Eval, OpSuffix(ot) + suffix, eval, zc);
 	}
@@ -1832,34 +1836,29 @@ void ZAM_InternalBinaryOpTemplate::InstantiateEval(const vector<ZAM_OperandType>
 	{
 	assert(ot.size() == 3);
 
-	auto op1_const = ot[1] == ZAM_OT_CONSTANT;
-	auto op2_const = ot[2] == ZAM_OT_CONSTANT;
-
-	string op1 = op1_const ? "z.c" : "frame[z.v2]";
-	string op2 = op2_const ? "z.c" : (op1_const ? "frame[z.v2]" : "frame[z.v3]");
-
-	string prelude = "auto op1 = $1." + op1_accessor + ";\n";
-	prelude += "auto op2 = $2." + op2_accessor + ";\n";
+	string prelude = "auto op1 = $1;\n";
+	prelude += "auto op2 = $2;\n";
 
 	auto eval = prelude + GetEval();
 
 	auto& ets = ExprTypes();
-	if ( ! ets.empty() )
-		{
-		if ( ets.size() != 1 )
-			g->Gripe("internal-binary-op's can have at most one op-type", op_loc);
+	if ( ets.size() != 1 )
+		g->Gripe("internal-binary-op's must have one op-type", op_loc);
 
-		for ( auto& et : ets )
-			{
-			auto acc = find_type_accessor(et);
-			// Need to escape the $'s because otherwise they're
-			// folded into captures.
-			auto lhs = "$$$$." + acc;
-			eval = regex_replace(eval, regex("\\$\\$"), lhs);
-			}
+	vector<string> accessors;
+
+	// The following only runs once, but given ets is an unordered_set,
+	// this is an easy way to get to the one value in it.
+	for ( auto& et : ets )
+		{
+		auto acc = find_type_accessor(et);
+		accessors.push_back(acc);
 		}
 
-	eval = ExpandParams(ot, eval);
+	accessors.push_back(op1_accessor);
+	accessors.push_back(op2_accessor);
+
+	eval = ExpandParams(ot, eval, accessors);
 
 	ZAM_OpTemplate::InstantiateEval(Eval, OpSuffix(ot) + suffix, eval, zc);
 	}

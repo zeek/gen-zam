@@ -412,7 +412,7 @@ protected:
 	                              const string& suffix, ZAM_InstClass zc);
 
 	// ### fix me
-	string ExpandParams(const vector<ZAM_OperandType>& ot, string eval);
+	string ExpandParams(const vector<ZAM_OperandType>& ot, string eval, const vector<string>& accessors);
 
 	// Top-level driver for generating the C++ evaluation code for
 	// a given flavor of operation.
