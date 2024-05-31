@@ -597,11 +597,113 @@ void ZAM_OpTemplate::BuildInstruction(const vector<ZAM_OperandType>& ot, const s
 	Emit("z = GenInst(" + op + ", " + params + ");");
 	}
 
+void fail(const char* msg, const string& eval)
+	{
+	printf("%s: %s\n", msg, eval.c_str());
+	exit(1);
+	}
+
+static bool skippable_ot(ZAM_OperandType ot)
+	{
+	return ot == ZAM_OT_EVENT_HANDLER || ot == ZAM_OT_AUX || ot == ZAM_OT_LIST;
+	}
+
 void ZAM_OpTemplate::InstantiateEval(const vector<ZAM_OperandType>& ot, const string& suffix,
                                      ZAM_InstClass zc)
 	{
+	if ( NoEval() )
+		return;
+
 	auto eval = GetEval();
 
+#if 1
+	auto have_target = eval.find("$$") != string::npos;
+
+	auto fl = GetOp1Flavor();
+	auto need_target = fl == "OP1_WRITE";
+
+	auto ot_size = ot.size();
+	if ( ot_size > 0 && (ot[0] == ZAM_OT_NONE || ot[0] == ZAM_OT_AUX || ot[0] == ZAM_OT_INT) )
+		{
+		--ot_size;
+		need_target = false;
+		}
+
+	while ( ot_size > 0 && skippable_ot(ot[ot_size - 1]) )
+		--ot_size;
+
+	auto max_param = ot_size;
+
+	if ( need_target && ! have_target )
+		fail("eval missing $$", eval);
+
+	if ( have_target )
+		{
+		assert(max_param > 0);
+		--max_param;
+		}
+
+	switch ( max_param ) {
+	case 4:
+		if ( eval.find("$4") == string::npos ) fail("eval missing $4", eval);
+	case 3:
+		if ( eval.find("$3") == string::npos ) fail("eval missing $3", eval);
+	case 2:
+		if ( eval.find("$2") == string::npos ) fail("eval missing $2", eval);
+	case 1:
+		if ( eval.find("$1") == string::npos ) fail("eval missing $1", eval);
+
+	case 0:
+		break;
+
+	default:
+		fail("unexpected param size", to_string(max_param) + " - " +  eval);
+		break;
+	}
+
+	int frame_slot = 0;
+	bool const_seen = false;
+
+	for ( size_t i = 0; i < ot_size; ++i )
+		{
+		string op;
+
+		switch ( ot[i] ) {
+		case ZAM_OT_VAR:
+		case ZAM_OT_RECORD_FIELD:
+			op = "frame[z.v" + to_string(++frame_slot) + "]";
+			break;
+
+		case ZAM_OT_INT:
+			op = "v" + to_string(++frame_slot);
+			break;
+
+		case ZAM_OT_CONSTANT:
+			if ( const_seen )
+				g->Gripe("double constant", eval.c_str());
+			const_seen = true;
+			op = "z.c";
+			break;
+
+		default:
+			fail("unexpected ot type", eval);
+			break;
+		}
+
+		string pat;
+		if ( i == 0 && have_target )
+			pat = "\\$\\$";
+		else
+			pat = "\\$" + to_string(have_target ? i : i + 1);
+
+		auto orig_eval = eval;
+		eval = regex_replace(eval, regex(pat), op);
+		if ( orig_eval == eval )
+			fail("no eval sub", pat + " - " + eval);
+		}
+#endif
+
+#if 0
 	if ( ot.size() > 1 )
 		{ // Check for use of "$1" to indicate the operand
 		string op1;
@@ -612,6 +714,7 @@ void ZAM_OpTemplate::InstantiateEval(const vector<ZAM_OperandType>& ot, const st
 
 		eval = regex_replace(eval, regex("\\$1"), op1);
 		}
+#endif
 
 	InstantiateEval(Eval, OpSuffix(ot) + suffix, eval, zc);
 	}
@@ -1797,10 +1900,13 @@ void ZAM_InternalOpTemplate::Parse(const string& attr, const string& line, const
 	if ( n == 1 )
 		{
 		eval += "args.push_back(";
+#if 0
 		if ( op_types[arg_offset] == ZAM_OT_CONSTANT )
 			eval += "z.c";
 		else
 			eval += "frame[z.v" + to_string(arg_slot) + "]";
+#endif
+		eval = "$1";
 
 		eval += ".ToVal(z.t));\n";
 		}
@@ -1817,9 +1923,12 @@ void ZAM_InternalOpTemplate::Parse(const string& attr, const string& line, const
 
 				if ( is_local_indirect_call )
 					{
+#if 0
 					eval += "auto sel = z.v" +
 						to_string(arg_slot) + ";\n";
 					eval += "auto func = frame[sel].AsFunc();\n";
+#endif
+					eval += "auto func = $1.AsFunc();\n";
 					}
 				else
 					{
@@ -2009,6 +2118,9 @@ void ZAMGen::ReadMacro(const string& line)
 			PutBack(s);
 			break;
 			}
+
+		if ( regex_search(s, regex("\\$[$123]")) )
+			fail("macro has $-param", s);
 
 		mac.push_back(s);
 		}
