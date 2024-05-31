@@ -675,7 +675,7 @@ void ZAM_OpTemplate::InstantiateEval(const vector<ZAM_OperandType>& ot, const st
 			break;
 
 		case ZAM_OT_INT:
-			op = "v" + to_string(++frame_slot);
+			op = "z.v" + to_string(++frame_slot);
 			break;
 
 		case ZAM_OT_CONSTANT:
@@ -1446,6 +1446,8 @@ void ZAM_ExprOpTemplate::InstantiateEval(const vector<ZAM_OperandType>& ot_orig,
 
 	for ( auto et : expr_types )
 		{
+		// Support for "op-type X" meaning "allow empty evaluation",
+		// as well as "evaluation is generic".
 		if ( et == ZAM_EXPR_TYPE_NONE && GetEval().empty() )
 			continue;
 
