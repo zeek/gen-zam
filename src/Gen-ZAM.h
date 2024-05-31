@@ -411,6 +411,9 @@ protected:
 	virtual void BuildInstruction(const vector<ZAM_OperandType>& ot, const string& params,
 	                              const string& suffix, ZAM_InstClass zc);
 
+	// ### fix me
+	string ExpandParams(const vector<ZAM_OperandType>& ot, string eval);
+
 	// Top-level driver for generating the C++ evaluation code for
 	// a given flavor of operation.
 	virtual void InstantiateEval(const vector<ZAM_OperandType>& ot, const string& suffix,

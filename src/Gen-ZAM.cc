@@ -608,15 +608,8 @@ static bool skippable_ot(ZAM_OperandType ot)
 	return ot == ZAM_OT_EVENT_HANDLER || ot == ZAM_OT_AUX || ot == ZAM_OT_LIST;
 	}
 
-void ZAM_OpTemplate::InstantiateEval(const vector<ZAM_OperandType>& ot, const string& suffix,
-                                     ZAM_InstClass zc)
+string ZAM_OpTemplate::ExpandParams(const vector<ZAM_OperandType>& ot, string eval)
 	{
-	if ( NoEval() )
-		return;
-
-	auto eval = GetEval();
-
-#if 1
 	auto have_target = eval.find("$$") != string::npos;
 
 	auto fl = GetOp1Flavor();
@@ -701,20 +694,17 @@ void ZAM_OpTemplate::InstantiateEval(const vector<ZAM_OperandType>& ot, const st
 		if ( orig_eval == eval )
 			fail("no eval sub", pat + " - " + eval);
 		}
-#endif
 
-#if 0
-	if ( ot.size() > 1 )
-		{ // Check for use of "$1" to indicate the operand
-		string op1;
-		if ( ot[1] == ZAM_OT_CONSTANT )
-			op1 = "z.c";
-		else if ( ot[1] == ZAM_OT_VAR )
-			op1 = "frame[z.v2]";
+	return eval;
+	}
 
-		eval = regex_replace(eval, regex("\\$1"), op1);
-		}
-#endif
+void ZAM_OpTemplate::InstantiateEval(const vector<ZAM_OperandType>& ot, const string& suffix,
+                                     ZAM_InstClass zc)
+	{
+	if ( NoEval() )
+		return;
+
+	auto eval = ExpandParams(ot, GetEval());
 
 	InstantiateEval(Eval, OpSuffix(ot) + suffix, eval, zc);
 	}
@@ -1848,8 +1838,8 @@ void ZAM_InternalBinaryOpTemplate::InstantiateEval(const vector<ZAM_OperandType>
 	string op1 = op1_const ? "z.c" : "frame[z.v2]";
 	string op2 = op2_const ? "z.c" : (op1_const ? "frame[z.v2]" : "frame[z.v3]");
 
-	string prelude = "auto op1 = " + op1 + "." + op1_accessor + ";\n";
-	prelude += "auto op2 = " + op2 + "." + op2_accessor + ";\n";
+	string prelude = "auto op1 = $1." + op1_accessor + ";\n";
+	prelude += "auto op2 = $2." + op2_accessor + ";\n";
 
 	auto eval = prelude + GetEval();
 
@@ -1862,10 +1852,14 @@ void ZAM_InternalBinaryOpTemplate::InstantiateEval(const vector<ZAM_OperandType>
 		for ( auto& et : ets )
 			{
 			auto acc = find_type_accessor(et);
-			auto lhs = "frame[z.v1]." + acc;
+			// Need to escape the $'s because otherwise they're
+			// folded into captures.
+			auto lhs = "$$$$." + acc;
 			eval = regex_replace(eval, regex("\\$\\$"), lhs);
 			}
 		}
+
+	eval = ExpandParams(ot, eval);
 
 	ZAM_OpTemplate::InstantiateEval(Eval, OpSuffix(ot) + suffix, eval, zc);
 	}
