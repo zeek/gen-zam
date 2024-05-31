@@ -608,7 +608,7 @@ static bool skippable_ot(ZAM_OperandType ot)
 	return ot == ZAM_OT_EVENT_HANDLER || ot == ZAM_OT_AUX || ot == ZAM_OT_LIST;
 	}
 
-string ZAM_OpTemplate::ExpandParams(const vector<ZAM_OperandType>& ot, string eval, const vector<string>& accessors)
+string ZAM_OpTemplate::ExpandParams(const vector<ZAM_OperandType>& ot, string eval, const vector<string>& accessors) const
 	{
 	auto have_target = eval.find("$$") != string::npos;
 
@@ -616,10 +616,18 @@ string ZAM_OpTemplate::ExpandParams(const vector<ZAM_OperandType>& ot, string ev
 	auto need_target = fl == "OP1_WRITE";
 
 	auto ot_size = ot.size();
-	if ( ot_size > 0 && (ot[0] == ZAM_OT_NONE || ot[0] == ZAM_OT_AUX || ot[0] == ZAM_OT_INT) )
+	if ( ot_size > 0 )
 		{
-		--ot_size;
-		need_target = false;
+		auto ot0 = ot[0];
+
+		if ( ot0 == ZAM_OT_NONE || ot0 == ZAM_OT_AUX )
+			{
+			--ot_size;
+			need_target = false;
+			}
+
+		else if ( ot0 == ZAM_OT_INT )
+			need_target = false;
 		}
 
 	while ( ot_size > 0 && skippable_ot(ot[ot_size - 1]) )
@@ -636,17 +644,32 @@ string ZAM_OpTemplate::ExpandParams(const vector<ZAM_OperandType>& ot, string ev
 		--max_param;
 		}
 
+	bool has_d1 = eval.find("$1") != string::npos;
+	bool has_d2 = eval.find("$2") != string::npos;
+	bool has_d3 = eval.find("$3") != string::npos;
+	bool has_d4 = eval.find("$4") != string::npos;
+
 	switch ( max_param ) {
-	case 4:
-		if ( eval.find("$4") == string::npos ) fail("eval missing $4", eval);
-	case 3:
-		if ( eval.find("$3") == string::npos ) fail("eval missing $3", eval);
-	case 2:
-		if ( eval.find("$2") == string::npos ) fail("eval missing $2", eval);
-	case 1:
-		if ( eval.find("$1") == string::npos ) fail("eval missing $1", eval);
+	case 4: if ( ! has_d4 ) fail("eval missing $4", eval);
+	case 3: if ( ! has_d3 ) fail("eval missing $3", eval);
+	case 2: if ( ! has_d2 ) fail("eval missing $2", eval);
+	case 1: if ( ! has_d1 ) fail("eval missing $1", eval);
 
 	case 0:
+		break;
+
+	default:
+		fail("unexpected param size", to_string(max_param) + " - " +  eval);
+		break;
+	}
+
+	switch ( max_param ) {
+	case 0: if ( has_d1 ) fail("extraneous $1 in eval", eval);
+	case 1: if ( has_d2 ) fail("extraneous $2 in eval", eval);
+	case 2: if ( has_d3 ) fail("extraneous $3 in eval", eval);
+	case 3: if ( has_d4 ) fail("extraneous $4 in eval", eval);
+
+	case 4:
 		break;
 
 	default:
@@ -707,8 +730,7 @@ void ZAM_OpTemplate::InstantiateEval(const vector<ZAM_OperandType>& ot, const st
 	if ( NoEval() )
 		return;
 
-	vector<string> no_accessors;
-	auto eval = ExpandParams(ot, GetEval(), no_accessors);
+	auto eval = ExpandParams(ot, GetEval());
 
 	InstantiateEval(Eval, OpSuffix(ot) + suffix, eval, zc);
 	}
@@ -772,7 +794,7 @@ void ZAM_OpTemplate::GenAssignOpCore(const vector<ZAM_OperandType>& ot, const st
 	{
 	if ( HasAssignVal() )
 		{
-		GenAssignOpValCore(eval, accessor, is_managed);
+		GenAssignOpValCore(ot, eval, accessor, is_managed);
 		return;
 		}
 
@@ -872,11 +894,9 @@ void ZAM_OpTemplate::GenAssignOpCore(const vector<ZAM_OperandType>& ot, const st
 		Emit("r->Modified();");
 	}
 
-void ZAM_OpTemplate::GenAssignOpValCore(const string& eval, const string& accessor, bool is_managed)
+void ZAM_OpTemplate::GenAssignOpValCore(const vector<ZAM_OperandType>& ot, const string& orig_eval, const string& accessor, bool is_managed)
 	{
 	auto v = GetAssignVal();
-
-	Emit(eval);
 
 	// Maps Zeek types to how to get the underlying value from a ValPtr.
 	static unordered_map<string, string> val_accessors = {
@@ -898,15 +918,19 @@ void ZAM_OpTemplate::GenAssignOpValCore(const string& eval, const string& access
 	else
 		rhs = v + ".As" + accessor + "()";
 
+	auto eval = orig_eval;
+
 	if ( is_managed )
 		{
-		Emit("auto rhs = " + rhs + ";");
-		Emit("zeek::Ref(rhs);");
-		Emit("Unref(frame[z.v1].ManagedVal());");
-		Emit("frame[z.v1] = ZVal(rhs);");
+		eval += string("auto rhs = ") + rhs + ";\n";
+		eval += "zeek::Ref(rhs);\n";
+		eval += "Unref($$.ManagedVal());\n";
+		eval += "$$ = ZVal(rhs);\n";
 		}
 	else
-		Emit("frame[z.v1] = ZVal(" + rhs + ");");
+		eval += "$$ = ZVal(" + rhs + ");\n";
+
+	Emit(ExpandParams(ot, eval));
 	}
 
 string ZAM_OpTemplate::MethodName(const vector<ZAM_OperandType>& ot) const

@@ -412,7 +412,12 @@ protected:
 	                              const string& suffix, ZAM_InstClass zc);
 
 	// ### fix me
-	string ExpandParams(const vector<ZAM_OperandType>& ot, string eval, const vector<string>& accessors);
+	string ExpandParams(const vector<ZAM_OperandType>& ot, string eval, const vector<string>& accessors) const;
+	string ExpandParams(const vector<ZAM_OperandType>& ot, string eval) const
+		{
+		vector<string> no_accessors;
+		return ExpandParams(ot, std::move(eval), no_accessors);
+		}
 
 	// Top-level driver for generating the C++ evaluation code for
 	// a given flavor of operation.
@@ -435,7 +440,7 @@ protected:
 	                     const string& accessor, bool is_managed);
 
 	// The same, but for when there's an explicit assignment value.
-	void GenAssignOpValCore(const string& eval, const string& accessor, bool is_managed);
+	void GenAssignOpValCore(const vector<ZAM_OperandType>& ot, const string& eval, const string& accessor, bool is_managed);
 
 	// Returns the name of the method associated with the particular
 	// list of operand types.
