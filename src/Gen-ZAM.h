@@ -276,6 +276,9 @@ public:
 	// above).
 	bool HasSideEffects() const { return has_side_effects; }
 
+	void SetIsPredicate() { is_predicate = true; }
+	bool IsPredicate() const { return is_predicate; }
+
 protected:
 	// Append to the list of operand types associated with this operation.
 	void AddOpType(ZAM_OperandType ot) { op_types.push_back(ot); }
@@ -563,6 +566,12 @@ protected:
 
 	// If true, then this operation has side effects.
 	bool has_side_effects = false;
+
+	// Whether to instantiate this operation as a predicate, which
+	// results in three versions: (1) assignment of the evaluation to
+	// a (integer-typed) target, (2) branch if the evaluation *is not*
+	// the case, (3) branch if the evaluation *is* the case.
+	bool is_predicate = false;
 
 	// If non-empty, then specifies the associated operation that
 	// is a version of this operation but without assigning the result;
