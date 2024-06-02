@@ -256,8 +256,34 @@ void ZAM_OpTemplate::Instantiate()
 		InstantiateOp(OperandTypes(), IncludesVectorOp());
 
 	else
-		for ( auto ots : op_types_vec )
+		{
+		// If one of the "types" includes a ZAM_OT_INT then build
+		// up an accessor list for those. Currently, we allow those
+		// to occur in only one position.
+		int ot_int_index = -1;
+		for ( auto& ots : op_types_vec )
+			{
+			for ( size_t i = 0; i < ots.size(); ++i )
+				if ( ots[i] == ZAM_OT_INT )
+					{
+					if ( ot_int_index >= 0 && ot_int_index != i )
+						g->Gripe("multiple 'i' instances in \"types\"", op_loc);
+					ot_int_index = i;
+					}
+			}
+
+		if ( ot_int_index >= 0 )
+			{ // expand the accessors to include this
+			for ( size_t i = 0; i < op_types_vec[0].size(); ++i )
+				if ( i == ot_int_index )
+					accessors.push_back("int_val");
+				else
+					accessors.push_back("");
+			}
+
+		for ( auto& ots : op_types_vec )
 			InstantiateOp(ots, IncludesVectorOp());
+		}
 	}
 
 void ZAM_OpTemplate::InstantiatePredicate()
@@ -766,6 +792,7 @@ string ZAM_OpTemplate::ExpandParams(const OTVec& ot, string eval, const vector<s
 	for ( size_t i = 0; i < ot_size; ++i )
 		{
 		string op;
+		bool needs_accessor = true;
 
 		switch ( ot[i] ) {
 		case ZAM_OT_VAR:
@@ -781,6 +808,7 @@ string ZAM_OpTemplate::ExpandParams(const OTVec& ot, string eval, const vector<s
 		case ZAM_OT_INT:
 			op = "z.v" + to_string(++frame_slot);
 			int_seen = true;
+			needs_accessor = false;
 			break;
 
 		case ZAM_OT_CONSTANT:
@@ -795,7 +823,7 @@ string ZAM_OpTemplate::ExpandParams(const OTVec& ot, string eval, const vector<s
 			break;
 		}
 
-		if ( ! accessors.empty() && ! accessors[i].empty() )
+		if ( needs_accessor && ! accessors.empty() && ! accessors[i].empty() )
 			op += "." + accessors[i];
 
 		string pat;
@@ -819,7 +847,7 @@ void ZAM_OpTemplate::InstantiateEval(const OTVec& ot, const string& suffix,
 	if ( NoEval() )
 		return;
 
-	auto eval = ExpandParams(ot, GetEval());
+	auto eval = ExpandParams(ot, GetEval(), accessors);
 
 	InstantiateEval(Eval, OpSuffix(ot) + suffix, eval, zc);
 	}

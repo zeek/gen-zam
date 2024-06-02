@@ -532,6 +532,12 @@ protected:
 	// through.
 	vector<OTVec> op_types_vec;
 
+	// The following is usually empty, but can be instantiates when
+	// iterating across "types" that in some instances include ZAM_OT_INT,
+	// in which case those will have ".int_val" accessors associated
+	// with those slots.
+	vector<string> accessors;
+
 	// See the description of Op1Flavor above.
 	string op1_flavor = "OP1_WRITE";
 
