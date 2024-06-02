@@ -370,13 +370,6 @@ protected:
 	const string& AssignmentLessOp() const { return assignment_less_op; }
 	const string& AssignmentLessOpType() const { return assignment_less_op_type; }
 
-	bool HasAssignmentLessDefault() const { return ! assignment_less_default.empty(); }
-	void SetAssignmentLessDefault(string def)
-		{
-		op1_flavor = "OP1_READ";
-		assignment_less_default = def;
-		}
-
 	// Builds the instructions associated with this operation, assuming
 	// a single operand.
 	void UnaryInstantiate();
@@ -595,8 +588,6 @@ protected:
 	// and the operand type (like "OP_V") of that associated operation.
 	string assignment_less_op;
 	string assignment_less_op_type;
-
-	string assignment_less_default;
 	};
 
 // A subclass used for "unary-op" templates.

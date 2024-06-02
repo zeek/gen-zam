@@ -243,14 +243,8 @@ void ZAM_OpTemplate::Build()
 		Parse(words[0], line, words);
 		}
 
-	if ( ! op_types_vec.empty() )
-		{
-		if ( ! op_types.empty() )
-			g->Gripe("\"type\" and \"types\" are mutually exclusive", op_loc);
-
-		if ( HasAssignmentLess() )
-			g->Gripe("\"types\" should not include side effects", op_loc);
-		}
+	if ( ! op_types.empty() && ! op_types_vec.empty() )
+		g->Gripe("\"type\" and \"types\" are mutually exclusive", op_loc);
 	}
 
 void ZAM_OpTemplate::Instantiate()
@@ -259,23 +253,7 @@ void ZAM_OpTemplate::Instantiate()
 		InstantiatePredicate();
 
 	else if ( op_types_vec.empty() )
-		{
 		InstantiateOp(OperandTypes(), IncludesVectorOp());
-
-		if ( HasAssignmentLessDefault() )
-			{
-			// We've built the assignment-less version, now
-			// do the one with the assignment.
-
-			eval += "\t" + assignment_less_default + ";";
-			auto suffix = OpSuffix(op_types);
-			assignment_less_op_type = "OP_" + suffix;
-			assignment_less_op = "OP_" + CanonicalName() + "_" + suffix;
-			op_types.insert(op_types.begin(), ZAM_OT_VAR);
-			op1_flavor = "OP1_WRITE";
-			InstantiateOp(OperandTypes(), IncludesVectorOp());
-			}
-		}
 
 	else
 		{
@@ -447,14 +425,7 @@ void ZAM_OpTemplate::Parse(const string& attr, const string& line, const Words& 
 	else if ( attr == "side-effects" )
 		{
 		if ( nwords == 3 )
-			{
-			if ( words[1] == "default" )
-				SetAssignmentLessDefault(words[2]);
-			else
-				SetAssignmentLess(words[1], words[2]);
-			}
-		else if ( nwords == 2 && words[1] == "default" )
-			g->Gripe("saw one", words[1]);
+			SetAssignmentLess(words[1], words[2]);
 		else
 			// otherwise shouldn't be any arguments
 			num_args = 0;
