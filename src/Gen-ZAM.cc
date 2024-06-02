@@ -250,56 +250,7 @@ void ZAM_OpTemplate::Build()
 void ZAM_OpTemplate::Instantiate()
 	{
 	if ( IsPredicate() )
-		{
-		if ( ! op_types_vec.empty() )
-			g->Gripe("\"predicate\" cannot include \"types\"", op_loc);
-
-		if ( op_types.empty() )
-			g->Gripe("\"predicate\" requires a \"type\"", op_loc);
-
-		if ( IncludesVectorOp() )
-			g->Gripe("\"predicate\" cannot include \"vector\"", op_loc);
-
-		// Build 3 forms: an assignment to an int-value'd $$,
-		// a conditional if the evaluation is true, and one if
-		// it is not.
-
-		auto orig_eval = eval;
-		// Remove trailing '\n' from eval.
-		orig_eval.pop_back();
-
-		auto orig_op_types = op_types;
-		bool no_types = orig_op_types[0] == ZAM_OT_NONE;
-
-		// Assignment form.
-		op_types.clear();
-		op_types.push_back(ZAM_OT_VAR);
-		if ( ! no_types )
-			op_types.insert(op_types.end(), orig_op_types.begin(), orig_op_types.end());
-
-		eval = "$$.int_val = " + orig_eval + ";";
-		InstantiateOp(op_types, false);
-
-		// Conditional form - branch if not true.
-		cname += "_COND";
-		op1_flavor = "OP1_READ";
-		if ( no_types )
-			op_types.clear();
-		else
-			op_types = orig_op_types;
-
-		op_types.push_back(ZAM_OT_INT);
-
-		auto branch_pos = to_string(op_types.size());
-		auto suffix = " )\n\t\tBRANCH($" + branch_pos + ")";
-		eval = "if ( ! (" + orig_eval + ")" + suffix;
-		InstantiateOp(op_types, false);
-
-		// Now the form that branches if true.
-		cname = "NOT_" + cname;
-		eval = "if ( " + orig_eval + suffix;
-		InstantiateOp(op_types, false);
-		}
+		InstantiatePredicate();
 
 	else if ( op_types_vec.empty() )
 		InstantiateOp(OperandTypes(), IncludesVectorOp());
@@ -307,6 +258,58 @@ void ZAM_OpTemplate::Instantiate()
 	else
 		for ( auto ots : op_types_vec )
 			InstantiateOp(ots, IncludesVectorOp());
+	}
+
+void ZAM_OpTemplate::InstantiatePredicate()
+	{
+	if ( ! op_types_vec.empty() )
+		g->Gripe("\"predicate\" cannot include \"types\"", op_loc);
+
+	if ( op_types.empty() )
+		g->Gripe("\"predicate\" requires a \"type\"", op_loc);
+
+	if ( IncludesVectorOp() )
+		g->Gripe("\"predicate\" cannot include \"vector\"", op_loc);
+
+	// Build 3 forms: an assignment to an int-value'd $$,
+	// a conditional if the evaluation is true, and one if
+	// it is not.
+
+	auto orig_eval = eval;
+	// Remove trailing '\n' from eval.
+	orig_eval.pop_back();
+
+	auto orig_op_types = op_types;
+	bool no_types = orig_op_types[0] == ZAM_OT_NONE;
+
+	// Assignment form.
+	op_types.clear();
+	op_types.push_back(ZAM_OT_VAR);
+	if ( ! no_types )
+		op_types.insert(op_types.end(), orig_op_types.begin(), orig_op_types.end());
+
+	eval = "$$.int_val = " + orig_eval + ";";
+	InstantiateOp(op_types, false);
+
+	// Conditional form - branch if not true.
+	cname += "_COND";
+	op1_flavor = "OP1_READ";
+	if ( no_types )
+		op_types.clear();
+	else
+		op_types = orig_op_types;
+
+	op_types.push_back(ZAM_OT_INT);
+
+	auto branch_pos = to_string(op_types.size());
+	auto suffix = " )\n\t\tBRANCH($" + branch_pos + ")";
+	eval = "if ( ! (" + orig_eval + ")" + suffix;
+	InstantiateOp(op_types, false);
+
+	// Now the form that branches if true.
+	cname = "NOT_" + cname;
+	eval = "if ( " + orig_eval + suffix;
+	InstantiateOp(op_types, false);
 	}
 
 void ZAM_OpTemplate::UnaryInstantiate()

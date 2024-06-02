@@ -280,8 +280,12 @@ public:
 	bool IsPredicate() const { return is_predicate; }
 
 protected:
+	// Does instantiation for predicate operations.
+	void InstantiatePredicate();
+
 	// Append to the list of operand types associated with this operation.
 	void AddOpType(ZAM_OperandType ot) { op_types.push_back(ot); }
+
 	// Retrieve the list of operand types associated with this operation.
 	const OTVec& OperandTypes() const { return op_types; }
 
