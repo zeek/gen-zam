@@ -857,15 +857,7 @@ void ZAM_OpTemplate::GenEval(EmitTarget et, const string& ot_str, const string& 
 	auto op_code = g->GenOpCode(this, "_" + ot_str + op_suffix, zc);
 
 	if ( et == Eval )
-		{
-		EmitTo(Desc);
-		Emit(op_code);
-		Emit(ot_str);
-		StartString();
-		Emit(eval);
-		EndString();
-		Emit("");
-		}
+		GenDesc(op_code, ot_str, eval);
 
 	EmitTo(et);
 	Emit("case " + op_code + ":");
@@ -876,11 +868,35 @@ void ZAM_OpTemplate::GenEval(EmitTarget et, const string& ot_str, const string& 
 	NL();
 	}
 
+void ZAM_OpTemplate::GenDesc(const string& op_code, const string& ot_str, const string& eval)
+	{
+	StartDesc(op_code, ot_str);
+	Emit(eval);
+	EndDesc();
+	}
+
+void ZAM_OpTemplate::StartDesc(const string& op_code, const string& ot_str)
+	{
+	EmitTo(Desc);
+	Emit("{ " + op_code + ",");
+	BeginBlock();
+	Emit("\"" + ot_str + "\",");
+	StartString();
+	}
+
+void ZAM_OpTemplate::EndDesc()
+	{
+	EndString();
+	EndBlock();
+	Emit("},");
+	}
+
 void ZAM_OpTemplate::InstantiateAssignOp(const OTVec& ot, const string& suffix)
 	{
 	// First, create a generic version of the operand, which the
 	// ZAM compiler uses to find specific-flavored versions.
-	auto op_string = "_" + OpSuffix(ot);
+	auto ot_str = OpSuffix(ot);
+	auto op_string = "_" + ot_str;
 	auto generic_op = g->GenOpCode(this, op_string);
 	auto flavor_ind = "assignment_flavor[" + generic_op + "]";
 
@@ -903,13 +919,11 @@ void ZAM_OpTemplate::InstantiateAssignOp(const OTVec& ot, const string& suffix)
 				GenAssignmentlessVersion(op);
 			}
 
-		EmitTo(Desc);
-		Emit(op);
-		StartString();
+		StartDesc(op, ot_str);
 		GenAssignOpCore(ot, eval, ti.accessor, ti.is_managed);
 		if ( ! post_eval.empty() )
 			Emit(post_eval);
-		EndString();
+		EndDesc();
 
 		EmitTo(Eval);
 		Emit("case " + op + ":");

@@ -444,6 +444,17 @@ protected:
 	void GenEval(EmitTarget et, const string& ot_str, const string& op_suffix, const string& eval,
 	             ZAM_InstClass zc);
 
+	// Generates a description of the ZAM operation suitable for
+	// reflection.
+	void GenDesc(const string& op_code, const string& ot_str, const string& eval);
+
+	// Generates the first part of a description, up to (but not including)
+	// the evaluation.
+	void StartDesc(const string& op_code, const string& ot_str);
+
+	// Finishes a description, once the evaluation is done.
+	void EndDesc();
+
 	// Generates a set of assignment C++ evaluations, one per each
 	// possible Zeek scripting type of operand.
 	void InstantiateAssignOp(const OTVec& ot, const string& suffix);
