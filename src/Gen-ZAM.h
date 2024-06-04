@@ -438,8 +438,8 @@ protected:
 
 	// Generates the C++ case statement for evaluating the given flavor
 	// of operation.
-	void InstantiateEval(EmitTarget et, const string& op_suffix, const string& eval,
-	                     ZAM_InstClass zc);
+	void GenEval(EmitTarget et, const string& op_suffix, const string& eval,
+	             ZAM_InstClass zc);
 
 	// Generates a set of assignment C++ evaluations, one per each
 	// possible Zeek scripting type of operand.

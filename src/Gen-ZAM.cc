@@ -849,11 +849,10 @@ void ZAM_OpTemplate::InstantiateEval(const OTVec& ot, const string& suffix,
 
 	auto eval = ExpandParams(ot, GetEval(), accessors);
 
-	InstantiateEval(Eval, OpSuffix(ot) + suffix, eval, zc);
+	GenEval(Eval, OpSuffix(ot) + suffix, eval, zc);
 	}
 
-void ZAM_OpTemplate::InstantiateEval(EmitTarget et, const string& op_suffix, const string& eval,
-                                     ZAM_InstClass zc)
+void ZAM_OpTemplate::GenEval(EmitTarget et, const string& op_suffix, const string& eval, ZAM_InstClass zc)
 	{
 	auto op_code = g->GenOpCode(this, "_" + op_suffix, zc);
 
@@ -1696,7 +1695,7 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OTVec& ot_orig,
 
 		auto full_suffix = ot_str + suffix + ei.OpMarker();
 
-		ZAM_OpTemplate::InstantiateEval(emit_target, full_suffix, eval, zc);
+		GenEval(emit_target, full_suffix, eval, zc);
 
 		if ( zc == ZIC_VEC )
 			{
@@ -1708,7 +1707,7 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OTVec& ot_orig,
 			auto op_code = g->GenOpCode(this, "_" + full_suffix);
 			auto dispatch = "vec_exec(" + op_code + ", Z_TYPE, " + dispatch_params + ", z);";
 
-			ZAM_OpTemplate::InstantiateEval(Eval, full_suffix, dispatch, zc);
+			GenEval(Eval, full_suffix, dispatch, zc);
 			}
 		}
 	}
@@ -2001,7 +2000,7 @@ void ZAM_InternalBinaryOpTemplate::InstantiateEval(const OTVec& ot,
 
 	auto eval = ExpandParams(ot, GetEval(), accessors);
 
-	ZAM_OpTemplate::InstantiateEval(Eval, OpSuffix(ot) + suffix, eval, zc);
+	GenEval(Eval, OpSuffix(ot) + suffix, eval, zc);
 	}
 
 void ZAM_InternalOpTemplate::Parse(const string& attr, const string& line, const Words& words)
