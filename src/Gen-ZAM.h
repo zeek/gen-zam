@@ -134,6 +134,9 @@ enum EmitTarget
 	// conditionals.
 	Cond,
 
+	// Descriptors of final ZAM operations.
+	Desc,
+
 	// Switch cases that provide the C++ code for executing specific
 	// individual ZAM instructions.
 	Eval,
@@ -504,6 +507,10 @@ protected:
 		Emit("}");
 		IndentDown();
 		}
+
+	// Start/finish emiting a (likely multi-line) string.
+	void StartString();
+	void EndString();
 
 	// Maps an operand type to a character mnemonic used to distinguish
 	// it from others.
@@ -980,6 +987,8 @@ public:
 
 	void IndentUp() { ++indent_level; }
 	void IndentDown() { --indent_level; }
+	void StartString() { string_lit = true; }
+	void EndString() { string_lit = false; }
 	void SetNoNL(bool _no_NL) { no_NL = _no_NL; }
 
 	[[noreturn]] void Gripe(const char* msg, const string& input) const { ti->Gripe(msg, input); }
@@ -1022,6 +1031,9 @@ private:
 	// per EmitTarget, so the caller needs to ensure it is managed
 	// consistently.
 	int indent_level = 0;
+
+	// If true, we're generating a string literal.
+	bool string_lit = false;
 
 	// If true, refrain from appending a newline to any emitted lines.
 	bool no_NL = false;

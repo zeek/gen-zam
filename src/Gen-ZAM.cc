@@ -856,6 +856,16 @@ void ZAM_OpTemplate::GenEval(EmitTarget et, const string& op_suffix, const strin
 	{
 	auto op_code = g->GenOpCode(this, "_" + op_suffix, zc);
 
+	if ( et == Eval )
+		{
+		EmitTo(Desc);
+		Emit(op_code);
+		StartString();
+		Emit(eval);
+		EndString();
+		Emit("");
+		}
+
 	EmitTo(et);
 	Emit("case " + op_code + ":");
 	BeginBlock();
@@ -891,6 +901,14 @@ void ZAM_OpTemplate::InstantiateAssignOp(const OTVec& ot, const string& suffix)
 			if ( HasAssignmentLess() )
 				GenAssignmentlessVersion(op);
 			}
+
+		EmitTo(Desc);
+		Emit(op);
+		StartString();
+		GenAssignOpCore(ot, eval, ti.accessor, ti.is_managed);
+		if ( ! post_eval.empty() )
+			Emit(post_eval);
+		EndString();
 
 		EmitTo(Eval);
 		Emit("case " + op + ":");
@@ -1097,6 +1115,16 @@ void ZAM_OpTemplate::IndentUp()
 void ZAM_OpTemplate::IndentDown()
 	{
 	g->IndentDown();
+	}
+
+void ZAM_OpTemplate::StartString()
+	{
+	g->StartString();
+	}
+
+void ZAM_OpTemplate::EndString()
+	{
+	g->EndString();
 	}
 
 void ZAM_UnaryOpTemplate::Instantiate()
@@ -2331,12 +2359,32 @@ void ZAMGen::Emit(EmitTarget et, const string& s)
 	FILE* f = gen_files[et];
 
 	for ( auto i = indent_level; i > 0; --i )
-		fputs("\t", f);
+		fputc('\t', f);
 
-	fputs(s.c_str(), f);
+	if ( string_lit )
+		{
+		fputc('"', f);
+		for ( auto sp = s.c_str(); *sp; ++sp )
+			{
+			if ( *sp == '\\' )
+				fputs("\\\\", f);
+			else if ( *sp == '"' )
+				fputs("\\\"", f);
+			else if ( *sp == '\n' )
+				{
+				// if ( *(sp+1) != '\0' )
+					fputs("\"\n\"", f);
+				}
+			else
+				fputc(*sp, f);
+			}
+		}
+
+	else
+		fputs(s.c_str(), f);
 
 	if ( ! no_NL && (s.empty() || s.back() != '\n') )
-		fputs("\n", f);
+		fputc('\n', f);
 	}
 
 void ZAMGen::InitEmitTargets()
@@ -2351,6 +2399,7 @@ void ZAMGen::InitEmitTargets()
 		{C2FieldDef, "ZAM-GenFieldsDefsC2.h"},
 		{C3Def, "ZAM-GenExprsDefsC3.h"},
 		{Cond, "ZAM-Conds.h"},
+		{Desc, "ZAM-Desc.h"},
 		{DirectDef, "ZAM-DirectDefs.h"},
 		{Eval, "ZAM-EvalDefs.h"},
 		{EvalMacros, "ZAM-EvalMacros.h"},
