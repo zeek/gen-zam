@@ -934,7 +934,7 @@ void ZAM_OpTemplate::GenAssignOpCore(const OTVec& ot, const string& eval,
 		// through a CoerceToAny operation, we allow expressing
 		// these directly.  They don't fit with the usual assignment
 		// paradigm since the RHS differs in type from the LHS.
-		Emit("auto v = z.c.ToVal(z.t);");
+		Emit("auto v = z.c.ToVal(Z_TYPE);");
 
 		if ( lhs_field )
 			{
@@ -963,7 +963,7 @@ void ZAM_OpTemplate::GenAssignOpCore(const OTVec& ot, const string& eval,
 
 		Emit("if ( ! v )");
 		BeginBlock();
-		Emit("ZAM_run_time_error(z.loc, \"field value missing\");");
+		Emit("ZAM_run_time_error(Z_LOC, \"field value missing\");");
 		Emit("break;");
 		EndBlock();
 
@@ -1706,7 +1706,7 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OTVec& ot_orig,
 				dispatch_params += ", frame[z.v3].AsVector()";
 
 			auto op_code = g->GenOpCode(this, "_" + full_suffix);
-			auto dispatch = "vec_exec(" + op_code + ", z.t, " + dispatch_params + ", z);";
+			auto dispatch = "vec_exec(" + op_code + ", Z_TYPE, " + dispatch_params + ", z);";
 
 			ZAM_OpTemplate::InstantiateEval(Eval, full_suffix, dispatch, zc);
 			}
@@ -2036,14 +2036,14 @@ void ZAM_InternalOpTemplate::Parse(const string& attr, const string& line, const
 	auto arg_offset = HasAssignVal() ? 1 : 0;
 	auto arg_slot = arg_offset + 1;
 
-	string func = "z.aux->func";
+	string func = "Z_AUX->func";
 
 	if ( n == 1 )
-		eval += "args.push_back($1.ToVal(z.t));\n";
+		eval += "args.push_back($1.ToVal(Z_TYPE));\n";
 
 	else if ( n != 0 )
 		{
-		eval += "auto aux = z.aux;\n";
+		eval += "auto aux = Z_AUX;\n";
 
 		if ( n < 0 )
 			{
@@ -2068,7 +2068,7 @@ void ZAM_InternalOpTemplate::Parse(const string& attr, const string& line, const
 
 				eval += "if ( ! func )\n";
 				eval += "\t{\n";
-				eval += "\tZAM_run_time_error(z.loc, \"value used but not set\");\n";
+				eval += "\tZAM_run_time_error(Z_LOC, \"value used but not set\");\n";
 				eval += "\tbreak;\n";
 				eval += "\t}\n";
 				}
@@ -2087,7 +2087,7 @@ void ZAM_InternalOpTemplate::Parse(const string& attr, const string& line, const
 				}
 		}
 
-	eval += "f->SetOnlyCall(z.aux->call_expr.get());\n";
+	eval += "f->SetOnlyCall(Z_AUX->call_expr.get());\n";
 	eval += "ZAM_PROFILE_PRE_CALL\n";
 
 	if ( HasAssignVal() )
