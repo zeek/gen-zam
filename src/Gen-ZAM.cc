@@ -849,17 +849,18 @@ void ZAM_OpTemplate::InstantiateEval(const OTVec& ot, const string& suffix,
 
 	auto eval = ExpandParams(ot, GetEval(), accessors);
 
-	GenEval(Eval, OpSuffix(ot) + suffix, eval, zc);
+	GenEval(Eval, OpSuffix(ot), suffix, eval, zc);
 	}
 
-void ZAM_OpTemplate::GenEval(EmitTarget et, const string& op_suffix, const string& eval, ZAM_InstClass zc)
+void ZAM_OpTemplate::GenEval(EmitTarget et, const string& ot_str, const string& op_suffix, const string& eval, ZAM_InstClass zc)
 	{
-	auto op_code = g->GenOpCode(this, "_" + op_suffix, zc);
+	auto op_code = g->GenOpCode(this, "_" + ot_str + op_suffix, zc);
 
 	if ( et == Eval )
 		{
 		EmitTo(Desc);
 		Emit(op_code);
+		Emit(ot_str);
 		StartString();
 		Emit(eval);
 		EndString();
@@ -1721,9 +1722,9 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OTVec& ot_orig,
 
 		eval = pre + eval;
 
-		auto full_suffix = ot_str + suffix + ei.OpMarker();
+		auto full_suffix = suffix + ei.OpMarker();
 
-		GenEval(emit_target, full_suffix, eval, zc);
+		GenEval(emit_target, ot_str, full_suffix, eval, zc);
 
 		if ( zc == ZIC_VEC )
 			{
@@ -1732,10 +1733,10 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OTVec& ot_orig,
 			if ( Arity() == 2 )
 				dispatch_params += ", frame[z.v3].AsVector()";
 
-			auto op_code = g->GenOpCode(this, "_" + full_suffix);
+			auto op_code = g->GenOpCode(this, "_" + ot_str + full_suffix);
 			auto dispatch = "vec_exec(" + op_code + ", Z_TYPE, " + dispatch_params + ", z);";
 
-			GenEval(Eval, full_suffix, dispatch, zc);
+			GenEval(Eval, ot_str, full_suffix, dispatch, zc);
 			}
 		}
 	}
@@ -2028,7 +2029,7 @@ void ZAM_InternalBinaryOpTemplate::InstantiateEval(const OTVec& ot,
 
 	auto eval = ExpandParams(ot, GetEval(), accessors);
 
-	GenEval(Eval, OpSuffix(ot) + suffix, eval, zc);
+	GenEval(Eval, OpSuffix(ot), suffix, eval, zc);
 	}
 
 void ZAM_InternalOpTemplate::Parse(const string& attr, const string& line, const Words& words)
@@ -2371,13 +2372,11 @@ void ZAMGen::Emit(EmitTarget et, const string& s)
 			else if ( *sp == '"' )
 				fputs("\\\"", f);
 			else if ( *sp == '\n' )
-				{
-				// if ( *(sp+1) != '\0' )
-					fputs("\"\n\"", f);
-				}
+				fputs("\\n", f);
 			else
 				fputc(*sp, f);
 			}
+		fputc('"', f);
 		}
 
 	else
