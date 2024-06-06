@@ -29,27 +29,27 @@ enum ZAM_InstClass
 	ZIC_FIELD, // a record field assignment
 	};
 
-// For a given instruction operand, its general type.
-enum ZAM_OperandType
+// For a given instruction operand, its general class.
+enum ZAM_OperandClass
 	{
-	ZAM_OT_CONSTANT, // uses the instruction's associated constant
-	ZAM_OT_EVENT_HANDLER, // uses the associated event handler
-	ZAM_OT_INT, // directly specified integer
-	ZAM_OT_VAR, // frame slot associated with a variable
+	ZAM_OC_CONSTANT, // uses the instruction's associated constant
+	ZAM_OC_EVENT_HANDLER, // uses the associated event handler
+	ZAM_OC_INT, // directly specified integer
+	ZAM_OC_VAR, // frame slot associated with a variable
 
-	ZAM_OT_ASSIGN_FIELD, // record field offset to assign to
-	ZAM_OT_RECORD_FIELD, // record field offset to access
+	ZAM_OC_ASSIGN_FIELD, // record field offset to assign to
+	ZAM_OC_RECORD_FIELD, // record field offset to access
 
 	// The following wind up the same in the ultimate instruction,
 	// but they differ in the calling sequences used to generate
 	// the instruction.
-	ZAM_OT_AUX, // uses the instruction's "aux" field
-	ZAM_OT_LIST, // a list, managed via the "aux" field
+	ZAM_OC_AUX, // uses the instruction's "aux" field
+	ZAM_OC_LIST, // a list, managed via the "aux" field
 
-	ZAM_OT_NONE, // instruction has no direct operands
+	ZAM_OC_NONE, // instruction has no direct operands
 	};
 
-using OTVec = vector<ZAM_OperandType>;
+using OTVec = vector<ZAM_OperandClass>;
 
 // For instructions corresponding to evaluating expressions, the type
 // of a given operand.  The generator uses these to transform the operand's
@@ -57,31 +57,31 @@ using OTVec = vector<ZAM_OperandType>;
 // evaluation code.
 enum ZAM_ExprType
 	{
-	ZAM_EXPR_TYPE_ADDR,
-	ZAM_EXPR_TYPE_ANY,
-	ZAM_EXPR_TYPE_DOUBLE,
-	ZAM_EXPR_TYPE_FUNC,
-	ZAM_EXPR_TYPE_INT,
-	ZAM_EXPR_TYPE_PATTERN,
-	ZAM_EXPR_TYPE_RECORD,
-	ZAM_EXPR_TYPE_STRING,
-	ZAM_EXPR_TYPE_SUBNET,
-	ZAM_EXPR_TYPE_TABLE,
-	ZAM_EXPR_TYPE_UINT,
-	ZAM_EXPR_TYPE_VECTOR,
-	ZAM_EXPR_TYPE_FILE,
-	ZAM_EXPR_TYPE_OPAQUE,
-	ZAM_EXPR_TYPE_LIST,
-	ZAM_EXPR_TYPE_TYPE,
+	ZAM_TYPE_ADDR,
+	ZAM_TYPE_ANY,
+	ZAM_TYPE_DOUBLE,
+	ZAM_TYPE_FUNC,
+	ZAM_TYPE_INT,
+	ZAM_TYPE_PATTERN,
+	ZAM_TYPE_RECORD,
+	ZAM_TYPE_STRING,
+	ZAM_TYPE_SUBNET,
+	ZAM_TYPE_TABLE,
+	ZAM_TYPE_UINT,
+	ZAM_TYPE_VECTOR,
+	ZAM_TYPE_FILE,
+	ZAM_TYPE_OPAQUE,
+	ZAM_TYPE_LIST,
+	ZAM_TYPE_TYPE,
 
 	// Used to specify "apart from the explicitly specified operand
 	// types, do this action for any other types".
-	ZAM_EXPR_TYPE_DEFAULT,
+	ZAM_TYPE_DEFAULT,
 
 	// Used for expressions where the evaluation code for the
 	// expression deals directly with the operand's ZVal, rather
 	// than the generator providing a higher-level version.
-	ZAM_EXPR_TYPE_NONE,
+	ZAM_TYPE_NONE,
 	};
 
 // We only use the following in the context where the vector's elements
@@ -181,13 +181,13 @@ enum EmitTarget
 	OpName,
 	};
 
-// A helper class for managing the (ordered) collection of ZAM_OperandType's
+// A helper class for managing the (ordered) collection of ZAM_OperandClass's
 // associated with an instruction in order to generate C++ calling sequences
 // (both parameters for declarations, and arguments for invocations).
 class ArgsManager
 	{
 public:
-	// Constructed by providing the various ZAM_OperandType's along
+	// Constructed by providing the various ZAM_OperandClass's along
 	// with the instruction's class.
 	ArgsManager(const OTVec& ot, ZAM_InstClass ic);
 
@@ -210,9 +210,9 @@ private:
 	// "x1", "x2", etc.
 	void Differentiate();
 
-	// Maps ZAM_OperandType's to their associated C++ type and
+	// Maps ZAM_OperandClass's to their associated C++ type and
 	// canonical parameter name.
-	static std::unordered_map<ZAM_OperandType, std::pair<const char*, const char*>> ot_to_args;
+	static std::unordered_map<ZAM_OperandClass, std::pair<const char*, const char*>> ot_to_args;
 
 	// For a single argument/parameter, tracks its declaration name,
 	// C++ type, and the name to use when providing it as a parameter.
@@ -228,7 +228,7 @@ private:
 		};
 
 	// All of the argument/parameters associated with the collection
-	// of ZAM_OperandType's.
+	// of ZAM_OperandClass's.
 	vector<Arg> args;
 
 	// Each of the individual parameters.
@@ -287,7 +287,7 @@ protected:
 	void InstantiatePredicate();
 
 	// Append to the list of operand types associated with this operation.
-	void AddOpType(ZAM_OperandType ot) { op_types.push_back(ot); }
+	void AddOpType(ZAM_OperandClass ot) { op_types.push_back(ot); }
 
 	// Retrieve the list of operand types associated with this operation.
 	const OTVec& OperandTypes() const { return op_types; }
@@ -525,7 +525,7 @@ protected:
 
 	// Maps an operand type to a character mnemonic used to distinguish
 	// it from others.
-	static std::unordered_map<ZAM_OperandType, char> ot_to_char;
+	static std::unordered_map<ZAM_OperandClass, char> ot_to_char;
 
 	// The associated driver object.
 	ZAMGen* g;
@@ -551,7 +551,7 @@ protected:
 	vector<OTVec> op_types_vec;
 
 	// The following is usually empty, but can be instantiates when
-	// iterating across "types" that in some instances include ZAM_OT_INT,
+	// iterating across "types" that in some instances include ZAM_OC_INT,
 	// in which case those will have ".int_val" accessors associated
 	// with those slots.
 	vector<string> accessors;
@@ -779,7 +779,7 @@ class ZAM_UnaryExprOpTemplate : public ZAM_ExprOpTemplate
 public:
 	ZAM_UnaryExprOpTemplate(ZAMGen* _g, string _base_name) : ZAM_ExprOpTemplate(_g, _base_name) { }
 
-	bool IncludesFieldOp() const override { return ExprTypes().count(ZAM_EXPR_TYPE_NONE) == 0; }
+	bool IncludesFieldOp() const override { return ExprTypes().count(ZAM_TYPE_NONE) == 0; }
 
 	int Arity() const override { return 1; }
 
