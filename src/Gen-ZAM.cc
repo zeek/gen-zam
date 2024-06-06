@@ -872,8 +872,14 @@ string ZAM_OpTemplate::ExpandParams(const OCVec& oc, string eval, const vector<s
 			{
 			if ( ! accessors.empty() && ! accessors[i].empty() )
 				op += "." + accessors[i];
-			else if ( ! op_types.empty() )
+			else if ( ! op_types.empty() && op_types[i] != ZAM_TYPE_NONE )
 				op += "." + find_type_accessor(op_types[i]);
+			}
+
+		else if ( ! op_types.empty() && oc[i] == ZAM_OC_INT )
+			{
+			if ( op_types[i] == ZAM_TYPE_UINT )
+				op = "zeek_uint_t(" + op + ")";
 			}
 
 		string pat;
