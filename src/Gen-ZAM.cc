@@ -254,7 +254,7 @@ void ZAM_OpTemplate::Build()
 		}
 
 	if ( ! op_classes.empty() && ! op_classes_vec.empty() )
-		g->Gripe("\"class\" and \"classes\" are mutually exclusive", op_loc);
+		Gripe("\"class\" and \"classes\" are mutually exclusive");
 
 	if ( ! op_classes.empty() || ! op_classes_vec.empty() )
 		{
@@ -262,14 +262,14 @@ void ZAM_OpTemplate::Build()
 
 		for ( auto& oc : op_classes_vec )
 			if ( oc.size() != nclasses )
-				g->Gripe("size mismatch in \"classes\" specifications", op_loc);
+				Gripe("size mismatch in \"classes\" specifications");
 
 		if ( ! op_types.empty() && op_types.size() != nclasses )
-			g->Gripe("number of \"op-types\" elements must match \"class\"/\"classes\"", op_loc);
+			Gripe("number of \"op-types\" elements must match \"class\"/\"classes\"");
 		}
 
 	else if ( ! op_types.empty() )
-		g->Gripe("\"op-types\" can only be used with \"class\"/\"classes\"", op_loc);
+		Gripe("\"op-types\" can only be used with \"class\"/\"classes\"");
 	}
 
 void ZAM_OpTemplate::Instantiate()
@@ -292,7 +292,7 @@ void ZAM_OpTemplate::Instantiate()
 				if ( ocs[i] == ZAM_OC_INT )
 					{
 					if ( ot_int_index >= 0 && ot_int_index != i )
-						g->Gripe("multiple 'i' instances in \"classes\"", op_loc);
+						Gripe("multiple 'i' instances in \"classes\"");
 					ot_int_index = i;
 					}
 			}
@@ -314,13 +314,13 @@ void ZAM_OpTemplate::Instantiate()
 void ZAM_OpTemplate::InstantiatePredicate()
 	{
 	if ( ! op_classes_vec.empty() )
-		g->Gripe("\"predicate\" cannot include \"classes\"", op_loc);
+		Gripe("\"predicate\" cannot include \"classes\"");
 
 	if ( op_classes.empty() )
-		g->Gripe("\"predicate\" requires a \"class\"", op_loc);
+		Gripe("\"predicate\" requires a \"class\"");
 
 	if ( IncludesVectorOp() )
-		g->Gripe("\"predicate\" cannot include \"vector\"", op_loc);
+		Gripe("\"predicate\" cannot include \"vector\"");
 
 	// Build 3 forms: an assignment to an int-value'd $$,
 	// a conditional if the evaluation is true, and one if
@@ -1187,6 +1187,11 @@ void ZAM_OpTemplate::EndString()
 	g->EndString();
 	}
 
+void ZAM_OpTemplate::Gripe(const char* msg) const
+	{
+	g->Gripe(msg, op_loc);
+	}
+
 void ZAM_UnaryOpTemplate::Instantiate()
 	{
 	UnaryInstantiate();
@@ -1319,7 +1324,7 @@ void ZAM_ExprOpTemplate::Parse(const string& attr, const string& line, const Wor
 void ZAM_ExprOpTemplate::Instantiate()
 	{
 	if ( ! op_classes_vec.empty() )
-		g->Gripe("expressions cannot use \"classes\"", op_loc);
+		Gripe("expressions cannot use \"classes\"");
 
 	InstantiateOp(OperandClasses(), IncludesVectorOp());
 
@@ -1512,7 +1517,7 @@ void ZAM_ExprOpTemplate::GenMethodTest(ZAM_Type et1, ZAM_Type et2, const string&
 	};
 
 	if ( if_tests.count(et1) == 0 )
-		g->Gripe("bad op-type", op_loc);
+		Gripe("bad op-type");
 
 	auto if_test = if_tests[et1];
 	auto if_var = if_test.first;
@@ -1894,9 +1899,9 @@ void ZAM_AssignOpTemplate::Parse(const string& attr, const string& line, const W
 void ZAM_AssignOpTemplate::Instantiate()
 	{
 	if ( op_classes.size() != 1 )
-		g->Gripe("operation needs precisely one \"type\"", op_loc);
+		Gripe("operation needs precisely one \"type\"");
 	if ( ! op_classes_vec.empty() )
-		g->Gripe("operation cannot use \"classes\"", op_loc);
+		Gripe("operation cannot use \"classes\"");
 
 	OCVec ocs;
 	ocs.push_back(op_classes[0]);
@@ -2061,7 +2066,7 @@ void ZAM_InternalBinaryOpTemplate::InstantiateEval(const OCVec& oc,
 
 	auto& ets = ExprTypes();
 	if ( ets.size() != 1 )
-		g->Gripe("internal-binary-op's must have one op-type", op_loc);
+		Gripe("internal-binary-op's must have one op-type");
 
 	vector<string> accessors;
 

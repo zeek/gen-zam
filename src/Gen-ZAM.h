@@ -519,6 +519,8 @@ protected:
 	void StartString();
 	void EndString();
 
+	void Gripe(const char* msg) const;
+
 	// Maps an operand class to a character mnemonic used to distinguish
 	// it from others.
 	static std::unordered_map<ZAM_OperandClass, char> oc_to_char;
