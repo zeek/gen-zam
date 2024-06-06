@@ -51,6 +51,16 @@ static vector<TypeInfo> ZAM_type_info = {
 	{"TYPE_VECTOR", ZAM_TYPE_VECTOR, "V", "Vector", true},
 };
 
+// Maps op-type mnemonics to the corresponding internal value used by Gen-ZAM.
+static unordered_map<char, ZAM_Type> type_names = {
+	{'*', ZAM_TYPE_DEFAULT}, {'A', ZAM_TYPE_ADDR},    {'a', ZAM_TYPE_ANY},
+	{'D', ZAM_TYPE_DOUBLE},  {'f', ZAM_TYPE_FILE},    {'F', ZAM_TYPE_FUNC},
+	{'I', ZAM_TYPE_INT},     {'L', ZAM_TYPE_LIST},    {'X', ZAM_TYPE_NONE},
+	{'O', ZAM_TYPE_OPAQUE},  {'P', ZAM_TYPE_PATTERN}, {'R', ZAM_TYPE_RECORD},
+	{'S', ZAM_TYPE_STRING},  {'N', ZAM_TYPE_SUBNET},  {'T', ZAM_TYPE_TABLE},
+	{'t', ZAM_TYPE_TYPE},    {'U', ZAM_TYPE_UINT},    {'V', ZAM_TYPE_VECTOR},
+};
+
 // Given a ZAM_Type, returns the corresponding TypeInfo.
 const TypeInfo& find_type_info(ZAM_Type zt)
 	{
@@ -245,6 +255,21 @@ void ZAM_OpTemplate::Build()
 
 	if ( ! op_classes.empty() && ! op_classes_vec.empty() )
 		g->Gripe("\"class\" and \"classes\" are mutually exclusive", op_loc);
+
+	if ( ! op_classes.empty() || ! op_classes_vec.empty() )
+		{
+		auto nclasses = op_classes.empty() ? op_classes_vec[0].size() : op_classes.size();
+
+		for ( auto& oc : op_classes_vec )
+			if ( oc.size() != nclasses )
+				g->Gripe("size mismatch in \"classes\" specifications", op_loc);
+
+		if ( ! op_types.empty() && op_types.size() != nclasses )
+			g->Gripe("number of \"op-types\" elements must match \"class\"/\"classes\"", op_loc);
+		}
+
+	else if ( ! op_types.empty() )
+		g->Gripe("\"op-types\" can only be used with \"class\"/\"classes\"", op_loc);
 	}
 
 void ZAM_OpTemplate::Instantiate()
@@ -383,6 +408,26 @@ void ZAM_OpTemplate::Parse(const string& attr, const string& line, const Words& 
 		for ( int i = 1; i < nwords; ++i )
 			op_classes_vec.push_back(ParseClass(words[i]));
 		}
+
+	else if ( attr == "op-types" )
+		{
+		if ( words.size() == 1 )
+			g->Gripe("op-types needs arguments", line);
+
+		for ( auto i = 1U; i < words.size(); ++i )
+			{
+			auto& w_i = words[i];
+			if ( w_i.size() != 1 )
+				g->Gripe("bad op-types argument", w_i);
+
+			auto et_c = w_i.c_str()[0];
+			if ( type_names.count(et_c) == 0 )
+				g->Gripe("bad op-types argument", w_i);
+
+			op_types.push_back(type_names[et_c]);
+			}
+		}
+
 
 	else if ( attr == "op1-read" )
 		{
@@ -1152,16 +1197,6 @@ void ZAM_DirectUnaryOpTemplate::Instantiate()
 	EmitTo(DirectDef);
 	Emit("case EXPR_" + cname + ":\treturn " + direct + "(lhs, rhs);");
 	}
-
-// Maps op-type mnemonics to the corresponding internal value used by Gen-ZAM.
-static unordered_map<char, ZAM_Type> type_names = {
-	{'*', ZAM_TYPE_DEFAULT}, {'A', ZAM_TYPE_ADDR},    {'a', ZAM_TYPE_ANY},
-	{'D', ZAM_TYPE_DOUBLE},  {'f', ZAM_TYPE_FILE},    {'F', ZAM_TYPE_FUNC},
-	{'I', ZAM_TYPE_INT},     {'L', ZAM_TYPE_LIST},    {'X', ZAM_TYPE_NONE},
-	{'O', ZAM_TYPE_OPAQUE},  {'P', ZAM_TYPE_PATTERN}, {'R', ZAM_TYPE_RECORD},
-	{'S', ZAM_TYPE_STRING},  {'N', ZAM_TYPE_SUBNET},  {'T', ZAM_TYPE_TABLE},
-	{'t', ZAM_TYPE_TYPE},    {'U', ZAM_TYPE_UINT},    {'V', ZAM_TYPE_VECTOR},
-};
 
 // Inverse of the above.
 static unordered_map<ZAM_Type, char> expr_name_types;

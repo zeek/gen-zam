@@ -423,7 +423,6 @@ protected:
 	virtual void BuildInstruction(const OCVec& oc, const string& params,
 	                              const string& suffix, ZAM_InstClass zc);
 
-	// ### fix me
 	string ExpandParams(const OCVec& oc, string eval, const vector<string>& accessors) const;
 	string ExpandParams(const OCVec& oc, string eval) const
 		{
@@ -546,6 +545,10 @@ protected:
 	// For operations that have several fixed operand sets to work
 	// through.
 	vector<OCVec> op_classes_vec;
+
+	// If non-empty, the ZAM types associated with each operand,
+	// left-to-right mirroring the order of the op_classes.
+	vector<ZAM_Type> op_types;
 
 	// The following is usually empty, but can be instantiates when
 	// iterating across "types" that in some instances include ZAM_OC_INT,
