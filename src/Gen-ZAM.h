@@ -55,7 +55,7 @@ using OCVec = vector<ZAM_OperandClass>;
 // of a given operand.  The generator uses these to transform the operand's
 // low-level ZVal into a higher-level type expected by the associated
 // evaluation code.
-enum ZAM_ExprType
+enum ZAM_Type
 	{
 	ZAM_TYPE_ADDR,
 	ZAM_TYPE_ANY,
@@ -646,7 +646,7 @@ public:
 	// "is_def" is true if this instance is for the default catch-all
 	// where the operand types don't match any of the explicitly
 	// specified evaluations;
-	EvalInstance(ZAM_ExprType lhs_et, ZAM_ExprType op1_et, ZAM_ExprType op2_et, string eval,
+	EvalInstance(ZAM_Type lhs_et, ZAM_Type op1_et, ZAM_Type op2_et, string eval,
 	             bool is_def);
 
 	// Returns the accessor to use for assigning to the LHS.  "is_ptr"
@@ -659,20 +659,20 @@ public:
 	string Op2Accessor(bool is_ptr = false) const { return Accessor(op2_et, is_ptr); }
 
 	// Provides an accessor for an operand of the given type.
-	string Accessor(ZAM_ExprType et, bool is_ptr = false) const;
+	string Accessor(ZAM_Type zt, bool is_ptr = false) const;
 
 	// Returns the "marker" use to make unique the opcode for this
 	// flavor of expression-evaluation instruction.
 	string OpMarker() const;
 
 	const string& Eval() const { return eval; }
-	ZAM_ExprType LHS_ET() const { return lhs_et; }
+	ZAM_Type LHS_ET() const { return lhs_et; }
 	bool IsDefault() const { return is_def; }
 
 private:
-	ZAM_ExprType lhs_et;
-	ZAM_ExprType op1_et;
-	ZAM_ExprType op2_et;
+	ZAM_Type lhs_et;
+	ZAM_Type op1_et;
+	ZAM_Type op2_et;
 	string eval;
 	bool is_def;
 	};
@@ -691,11 +691,11 @@ public:
 	int HasExplicitResultType() const { return explicit_res_type; }
 	void SetHasExplicitResultType() { explicit_res_type = true; }
 
-	void AddExprType(ZAM_ExprType et) { expr_types.insert(et); }
-	const std::unordered_set<ZAM_ExprType>& ExprTypes() const { return expr_types; }
+	void AddExprType(ZAM_Type zt) { expr_types.insert(zt); }
+	const std::unordered_set<ZAM_Type>& ExprTypes() const { return expr_types; }
 
-	void AddEvalSet(ZAM_ExprType et, string ev) { eval_set[et] += ev; }
-	void AddEvalSet(ZAM_ExprType et1, ZAM_ExprType et2, string ev)
+	void AddEvalSet(ZAM_Type zt, string ev) { eval_set[zt] += ev; }
+	void AddEvalSet(ZAM_Type et1, ZAM_Type et2, string ev)
 		{
 		eval_mixed_set[et1][et2] += ev;
 		}
@@ -740,7 +740,7 @@ protected:
 
 	// Generates an if-else cascade element that matches one of the
 	// specific Zeek types associated with the instruction.
-	void GenMethodTest(ZAM_ExprType et1, ZAM_ExprType et2, const string& params,
+	void GenMethodTest(ZAM_Type et1, ZAM_Type et2, const string& params,
 	                   const string& suffix, bool do_else, ZAM_InstClass zc);
 
 	void InstantiateEval(const OCVec& oc, const string& suffix,
@@ -748,14 +748,14 @@ protected:
 
 private:
 	// The Zeek types that can appear as operands for the expression.
-	std::unordered_set<ZAM_ExprType> expr_types;
+	std::unordered_set<ZAM_Type> expr_types;
 
 	// The C++ evaluation template for a given operand type.
-	std::unordered_map<ZAM_ExprType, string> eval_set;
+	std::unordered_map<ZAM_Type, string> eval_set;
 
 	// Some expressions take two operands of different types.  This
 	// holds their C++ evaluation template.
-	std::unordered_map<ZAM_ExprType, std::unordered_map<ZAM_ExprType, string>> eval_mixed_set;
+	std::unordered_map<ZAM_Type, std::unordered_map<ZAM_Type, string>> eval_mixed_set;
 
 	// Whether this expression's operand is a field access (and thus
 	// needs both the record as an operand and an additional constant

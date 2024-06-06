@@ -26,7 +26,7 @@ static char under_to_dash(char c)
 struct TypeInfo
 	{
 	string tag;
-	ZAM_ExprType et;
+	ZAM_Type zt;
 	string suffix;
 	string accessor; // doesn't include "As" prefix or "()" suffix
 	bool is_managed;
@@ -51,14 +51,14 @@ static vector<TypeInfo> ZAM_type_info = {
 	{"TYPE_VECTOR", ZAM_TYPE_VECTOR, "V", "Vector", true},
 };
 
-// Given a ZAM_ExprType, returns the corresponding TypeInfo.
-const TypeInfo& find_type_info(ZAM_ExprType et)
+// Given a ZAM_Type, returns the corresponding TypeInfo.
+const TypeInfo& find_type_info(ZAM_Type zt)
 	{
-	assert(et != ZAM_TYPE_NONE);
+	assert(zt != ZAM_TYPE_NONE);
 
-	auto pred = [et](const TypeInfo& ti) -> bool
+	auto pred = [zt](const TypeInfo& ti) -> bool
 	{
-		return ti.et == et;
+		return ti.zt == zt;
 	};
 	auto ti = std::find_if(ZAM_type_info.begin(), ZAM_type_info.end(), pred);
 
@@ -66,11 +66,11 @@ const TypeInfo& find_type_info(ZAM_ExprType et)
 	return *ti;
 	}
 
-// Given a ZAM_ExprType, return its ZVal accessor.  Takes into account
+// Given a ZAM_Type, return its ZVal accessor.  Takes into account
 // some naming inconsistencies between ZVal's and Val's.
-string find_type_accessor(ZAM_ExprType et)
+string find_type_accessor(ZAM_Type zt)
 	{
-	switch ( et )
+	switch ( zt )
 		{
 		case ZAM_TYPE_NONE:
 			return "";
@@ -83,7 +83,7 @@ string find_type_accessor(ZAM_ExprType et)
 
 		default:
 			{
-			string acc = find_type_info(et).accessor;
+			string acc = find_type_info(zt).accessor;
 			transform(acc.begin(), acc.end(), acc.begin(), ::tolower);
 			return acc + "_val";
 			}
@@ -1154,7 +1154,7 @@ void ZAM_DirectUnaryOpTemplate::Instantiate()
 	}
 
 // Maps op-type mnemonics to the corresponding internal value used by Gen-ZAM.
-static unordered_map<char, ZAM_ExprType> expr_type_names = {
+static unordered_map<char, ZAM_Type> type_names = {
 	{'*', ZAM_TYPE_DEFAULT}, {'A', ZAM_TYPE_ADDR},    {'a', ZAM_TYPE_ANY},
 	{'D', ZAM_TYPE_DOUBLE},  {'f', ZAM_TYPE_FILE},    {'F', ZAM_TYPE_FUNC},
 	{'I', ZAM_TYPE_INT},     {'L', ZAM_TYPE_LIST},    {'X', ZAM_TYPE_NONE},
@@ -1164,7 +1164,7 @@ static unordered_map<char, ZAM_ExprType> expr_type_names = {
 };
 
 // Inverse of the above.
-static unordered_map<ZAM_ExprType, char> expr_name_types;
+static unordered_map<ZAM_Type, char> expr_name_types;
 
 ZAM_ExprOpTemplate::ZAM_ExprOpTemplate(ZAMGen* _g, string _base_name)
 	: ZAM_OpTemplate(_g, std::move(_base_name))
@@ -1173,7 +1173,7 @@ ZAM_ExprOpTemplate::ZAM_ExprOpTemplate(ZAMGen* _g, string _base_name)
 
 	if ( ! did_map_init )
 		{ // Create the inverse mapping.
-		for ( auto& tn : expr_type_names )
+		for ( auto& tn : type_names )
 			expr_name_types[tn.second] = tn.first;
 
 		did_map_init = true;
@@ -1194,10 +1194,10 @@ void ZAM_ExprOpTemplate::Parse(const string& attr, const string& line, const Wor
 				g->Gripe("bad op-type argument", w_i);
 
 			auto et_c = w_i.c_str()[0];
-			if ( expr_type_names.count(et_c) == 0 )
+			if ( type_names.count(et_c) == 0 )
 				g->Gripe("bad op-type argument", w_i);
 
-			AddExprType(expr_type_names[et_c]);
+			AddExprType(type_names[et_c]);
 			}
 		}
 
@@ -1219,17 +1219,17 @@ void ZAM_ExprOpTemplate::Parse(const string& attr, const string& line, const Wor
 			g->Gripe("bad eval-type type", type);
 
 		auto type_c = type.c_str()[0];
-		if ( expr_type_names.count(type_c) == 0 )
+		if ( type_names.count(type_c) == 0 )
 			g->Gripe("bad eval-type type", type);
 
-		auto et = expr_type_names[type_c];
+		auto zt = type_names[type_c];
 
-		if ( expr_types.count(et) == 0 )
+		if ( expr_types.count(zt) == 0 )
 			g->Gripe("eval-type type not present in eval-type", type);
 
 		auto eval = g->SkipWords(line, 2);
 		eval += GatherEval();
-		AddEvalSet(et, eval);
+		AddEvalSet(zt, eval);
 		}
 
 	else if ( attr == "eval-mixed" )
@@ -1244,11 +1244,11 @@ void ZAM_ExprOpTemplate::Parse(const string& attr, const string& line, const Wor
 
 		auto type_c1 = type1.c_str()[0];
 		auto type_c2 = type2.c_str()[0];
-		if ( expr_type_names.count(type_c1) == 0 || expr_type_names.count(type_c2) == 0 )
+		if ( type_names.count(type_c1) == 0 || type_names.count(type_c2) == 0 )
 			g->Gripe("bad eval-mixed types", line);
 
-		auto et1 = expr_type_names[type_c1];
-		auto et2 = expr_type_names[type_c2];
+		auto et1 = type_names[type_c1];
+		auto et2 = type_names[type_c2];
 
 		if ( eval_set.count(et1) > 0 )
 			g->Gripe("eval-mixed uses type also included in op-type", line);
@@ -1429,14 +1429,14 @@ void ZAM_ExprOpTemplate::BuildInstructionCore(const string& params, const string
 
 	bool do_default = false;
 
-	for ( auto et : ExprTypes() )
+	for ( auto zt : ExprTypes() )
 		{
-		if ( et == ZAM_TYPE_DEFAULT )
+		if ( zt == ZAM_TYPE_DEFAULT )
 			do_default = true;
-		else if ( et == ZAM_TYPE_NONE )
+		else if ( zt == ZAM_TYPE_NONE )
 			continue;
 		else
-			GenMethodTest(et, et, params, suffix, ++ncases > 1, zc);
+			GenMethodTest(zt, zt, params, suffix, ++ncases > 1, zc);
 		}
 
 	Emit("else");
@@ -1451,13 +1451,13 @@ void ZAM_ExprOpTemplate::BuildInstructionCore(const string& params, const string
 		EmitUp("reporter->InternalError(\"bad tag when generating method core\");");
 	}
 
-void ZAM_ExprOpTemplate::GenMethodTest(ZAM_ExprType et1, ZAM_ExprType et2, const string& params,
+void ZAM_ExprOpTemplate::GenMethodTest(ZAM_Type et1, ZAM_Type et2, const string& params,
                                        const string& suffix, bool do_else, ZAM_InstClass zc)
 	{
-	// Maps ZAM_ExprType's to the information needed (variable name,
+	// Maps ZAM_Type's to the information needed (variable name,
 	// constant to compare it against) to identify using an "if" test
 	// that a given AST Expr node employs the given type of operand.
-	static map<ZAM_ExprType, pair<string, string>> if_tests = {
+	static map<ZAM_Type, pair<string, string>> if_tests = {
 		{ZAM_TYPE_ADDR, {"i_t", "TYPE_INTERNAL_ADDR"}},
 		{ZAM_TYPE_ANY, {"tag", "TYPE_ANY"}},
 		{ZAM_TYPE_DOUBLE, {"i_t", "TYPE_INTERNAL_DOUBLE"}},
@@ -1497,7 +1497,7 @@ void ZAM_ExprOpTemplate::GenMethodTest(ZAM_ExprType et1, ZAM_ExprType et2, const
 	EmitUp("z = GenInst(" + op + ", " + params + ");");
 	}
 
-EvalInstance::EvalInstance(ZAM_ExprType _lhs_et, ZAM_ExprType _op1_et, ZAM_ExprType _op2_et,
+EvalInstance::EvalInstance(ZAM_Type _lhs_et, ZAM_Type _op1_et, ZAM_Type _op2_et,
                            string _eval, bool _is_def)
 	{
 	lhs_et = _lhs_et;
@@ -1518,13 +1518,13 @@ string EvalInstance::LHSAccessor(bool is_ptr) const
 	return deref + acc;
 	}
 
-string EvalInstance::Accessor(ZAM_ExprType et, bool is_ptr) const
+string EvalInstance::Accessor(ZAM_Type zt, bool is_ptr) const
 	{
-	if ( et == ZAM_TYPE_NONE || et == ZAM_TYPE_DEFAULT )
+	if ( zt == ZAM_TYPE_NONE || zt == ZAM_TYPE_DEFAULT )
 		return "";
 
 	string deref = is_ptr ? "->" : ".";
-	return deref + "As" + find_type_info(et).accessor + "()";
+	return deref + "As" + find_type_info(zt).accessor + "()";
 	}
 
 string EvalInstance::OpMarker() const
@@ -1624,17 +1624,17 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 
 	vector<EvalInstance> eval_instances;
 
-	for ( auto et : expr_types )
+	for ( auto zt : expr_types )
 		{
 		// Support for "op-type X" meaning "allow empty evaluation",
 		// as well as "evaluation is generic".
-		if ( et == ZAM_TYPE_NONE && GetEval().empty() )
+		if ( zt == ZAM_TYPE_NONE && GetEval().empty() )
 			continue;
 
-		auto is_def = eval_set.count(et) == 0;
-		string eval = is_def ? GetEval() : eval_set[et];
-		auto lhs_et = IsConditionalOp() ? ZAM_TYPE_INT : et;
-		eval_instances.emplace_back(lhs_et, et, et, eval, is_def);
+		auto is_def = eval_set.count(zt) == 0;
+		string eval = is_def ? GetEval() : eval_set[zt];
+		auto lhs_et = IsConditionalOp() ? ZAM_TYPE_INT : zt;
+		eval_instances.emplace_back(lhs_et, zt, zt, eval, is_def);
 		}
 
 	if ( zc != ZIC_VEC )
@@ -1834,11 +1834,11 @@ ZAM_AssignOpTemplate::ZAM_AssignOpTemplate(ZAMGen* _g, string _base_name)
 	: ZAM_UnaryExprOpTemplate(_g, std::move(_base_name))
 	{
 	// Assignments apply to every valid form of ExprType.
-	for ( auto& etn : expr_type_names )
+	for ( auto& etn : type_names )
 		{
-		auto et = etn.second;
-		if ( et != ZAM_TYPE_NONE && et != ZAM_TYPE_DEFAULT )
-			AddExprType(et);
+		auto zt = etn.second;
+		if ( zt != ZAM_TYPE_NONE && zt != ZAM_TYPE_DEFAULT )
+			AddExprType(zt);
 		}
 	}
 
@@ -2032,9 +2032,9 @@ void ZAM_InternalBinaryOpTemplate::InstantiateEval(const OCVec& oc,
 
 	// The following only runs once, but given ets is an unordered_set,
 	// this is an easy way to get to the one value in it.
-	for ( auto& et : ets )
+	for ( auto& zt : ets )
 		{
-		auto acc = find_type_accessor(et);
+		auto acc = find_type_accessor(zt);
 		accessors.push_back(acc);
 		}
 
