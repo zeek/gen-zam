@@ -93,7 +93,7 @@ string find_type_accessor(ZAM_ExprType et)
 // Maps ZAM operand types to pairs of (1) the C++ name used to declare
 // the operand in a method declaration, and (2) the variable name to
 // use for the operand.
-unordered_map<ZAM_OperandClass, pair<const char*, const char*>> ArgsManager::ot_to_args = {
+unordered_map<ZAM_OperandClass, pair<const char*, const char*>> ArgsManager::oc_to_args = {
 	{ZAM_OC_AUX, {"OpaqueVals*", "v"}},
 	{ZAM_OC_CONSTANT, {"const ConstExpr*", "c"}},
 	{ZAM_OC_EVENT_HANDLER, {"EventHandler*", "h"}},
@@ -106,16 +106,16 @@ unordered_map<ZAM_OperandClass, pair<const char*, const char*>> ArgsManager::ot_
 	{ZAM_OC_ASSIGN_FIELD, {"const NameExpr*", "n"}},
 };
 
-ArgsManager::ArgsManager(const OTVec& ot, ZAM_InstClass zc)
+ArgsManager::ArgsManager(const OCVec& oc, ZAM_InstClass zc)
 	{
 	int n = 0;
 	bool add_field = false;
 
-	for ( const auto& ot_i : ot )
+	for ( const auto& ot_i : oc )
 		{
 		if ( ot_i == ZAM_OC_NONE )
 			{ // it had better be the only operand type
-			assert(ot.size() == 1);
+			assert(oc.size() == 1);
 			break;
 			}
 
@@ -126,7 +126,7 @@ ArgsManager::ArgsManager(const OTVec& ot, ZAM_InstClass zc)
 		// Start off the argument info using the usual case
 		// of (1) same method parameter name as GenInst argument,
 		// and (2) not requiring a record field.
-		auto& arg_i = ot_to_args[ot_i];
+		auto& arg_i = oc_to_args[ot_i];
 		Arg arg = {arg_i.second, arg_i.first, arg_i.second, false};
 
 		if ( ot_i == ZAM_OC_ASSIGN_FIELD )
@@ -243,7 +243,7 @@ void ZAM_OpTemplate::Build()
 		Parse(words[0], line, words);
 		}
 
-	if ( ! op_types.empty() && ! op_types_vec.empty() )
+	if ( ! op_classes.empty() && ! op_classes_vec.empty() )
 		g->Gripe("\"type\" and \"types\" are mutually exclusive", op_loc);
 	}
 
@@ -252,8 +252,8 @@ void ZAM_OpTemplate::Instantiate()
 	if ( IsPredicate() )
 		InstantiatePredicate();
 
-	else if ( op_types_vec.empty() )
-		InstantiateOp(OperandTypes(), IncludesVectorOp());
+	else if ( op_classes_vec.empty() )
+		InstantiateOp(OperandClasses(), IncludesVectorOp());
 
 	else
 		{
@@ -261,10 +261,10 @@ void ZAM_OpTemplate::Instantiate()
 		// up an accessor list for those. Currently, we allow those
 		// to occur in only one position.
 		int ot_int_index = -1;
-		for ( auto& ots : op_types_vec )
+		for ( auto& ocs : op_classes_vec )
 			{
-			for ( size_t i = 0; i < ots.size(); ++i )
-				if ( ots[i] == ZAM_OC_INT )
+			for ( size_t i = 0; i < ocs.size(); ++i )
+				if ( ocs[i] == ZAM_OC_INT )
 					{
 					if ( ot_int_index >= 0 && ot_int_index != i )
 						g->Gripe("multiple 'i' instances in \"types\"", op_loc);
@@ -274,24 +274,24 @@ void ZAM_OpTemplate::Instantiate()
 
 		if ( ot_int_index >= 0 )
 			{ // expand the accessors to include this
-			for ( size_t i = 0; i < op_types_vec[0].size(); ++i )
+			for ( size_t i = 0; i < op_classes_vec[0].size(); ++i )
 				if ( i == ot_int_index )
 					accessors.push_back("int_val");
 				else
 					accessors.push_back("");
 			}
 
-		for ( auto& ots : op_types_vec )
-			InstantiateOp(ots, IncludesVectorOp());
+		for ( auto& ocs : op_classes_vec )
+			InstantiateOp(ocs, IncludesVectorOp());
 		}
 	}
 
 void ZAM_OpTemplate::InstantiatePredicate()
 	{
-	if ( ! op_types_vec.empty() )
+	if ( ! op_classes_vec.empty() )
 		g->Gripe("\"predicate\" cannot include \"types\"", op_loc);
 
-	if ( op_types.empty() )
+	if ( op_classes.empty() )
 		g->Gripe("\"predicate\" requires a \"type\"", op_loc);
 
 	if ( IncludesVectorOp() )
@@ -305,58 +305,58 @@ void ZAM_OpTemplate::InstantiatePredicate()
 	// Remove trailing '\n' from eval.
 	orig_eval.pop_back();
 
-	auto orig_op_types = op_types;
-	bool no_types = orig_op_types[0] == ZAM_OC_NONE;
+	auto orig_op_classes = op_classes;
+	bool no_classes = orig_op_classes[0] == ZAM_OC_NONE;
 
 	// Assignment form.
-	op_types.clear();
-	op_types.push_back(ZAM_OC_VAR);
-	if ( ! no_types )
-		op_types.insert(op_types.end(), orig_op_types.begin(), orig_op_types.end());
+	op_classes.clear();
+	op_classes.push_back(ZAM_OC_VAR);
+	if ( ! no_classes )
+		op_classes.insert(op_classes.end(), orig_op_classes.begin(), orig_op_classes.end());
 
 	eval = "$$.int_val = " + orig_eval + ";";
-	InstantiateOp(op_types, false);
+	InstantiateOp(op_classes, false);
 
 	// Conditional form - branch if not true.
 	cname += "_COND";
 	op1_flavor = "OP1_READ";
-	if ( no_types )
-		op_types.clear();
+	if ( no_classes )
+		op_classes.clear();
 	else
-		op_types = orig_op_types;
+		op_classes = orig_op_classes;
 
-	op_types.push_back(ZAM_OC_INT);
+	op_classes.push_back(ZAM_OC_INT);
 
-	auto branch_pos = to_string(op_types.size());
+	auto branch_pos = to_string(op_classes.size());
 	auto suffix = " )\n\t\tBRANCH($" + branch_pos + ")";
 	eval = "if ( ! (" + orig_eval + ")" + suffix;
-	InstantiateOp(op_types, false);
+	InstantiateOp(op_classes, false);
 
 	// Now the form that branches if true.
 	cname = "NOT_" + cname;
 	eval = "if ( " + orig_eval + suffix;
-	InstantiateOp(op_types, false);
+	InstantiateOp(op_classes, false);
 	}
 
 void ZAM_OpTemplate::UnaryInstantiate()
 	{
 	// First operand is always the frame slot to which this operation
 	// assigns the result of the applying unary operator.
-	OTVec ots = {ZAM_OC_VAR};
-	ots.resize(2);
+	OCVec ocs = {ZAM_OC_VAR};
+	ocs.resize(2);
 
 	// Now build versions for a constant operand (maybe not actually
 	// needed due to constant folding, but sometimes that gets deferred
 	// to run-time) ...
 	if ( ! NoConst() )
 		{
-		ots[1] = ZAM_OC_CONSTANT;
-		InstantiateOp(ots, IncludesVectorOp());
+		ocs[1] = ZAM_OC_CONSTANT;
+		InstantiateOp(ocs, IncludesVectorOp());
 		}
 
 	// ... and for a variable (frame-slot) operand.
-	ots[1] = ZAM_OC_VAR;
-	InstantiateOp(ots, IncludesVectorOp());
+	ocs[1] = ZAM_OC_VAR;
+	InstantiateOp(ocs, IncludesVectorOp());
 	}
 
 void ZAM_OpTemplate::Parse(const string& attr, const string& line, const Words& words)
@@ -370,7 +370,7 @@ void ZAM_OpTemplate::Parse(const string& attr, const string& line, const Words& 
 			g->Gripe("missing argument", line);
 
 		num_args = 1;
-		op_types = ParseType(words[1]);
+		op_classes = ParseType(words[1]);
 		}
 
 	else if ( attr == "types" )
@@ -381,7 +381,7 @@ void ZAM_OpTemplate::Parse(const string& attr, const string& line, const Words& 
 		num_args = -1;
 
 		for ( int i = 1; i < nwords; ++i )
-			op_types_vec.push_back(ParseType(words[i]));
+			op_classes_vec.push_back(ParseType(words[i]));
 		}
 
 	else if ( attr == "op1-read" )
@@ -471,43 +471,43 @@ void ZAM_OpTemplate::Parse(const string& attr, const string& line, const Words& 
 		g->Gripe("extraneous or missing arguments", line);
 	}
 
-OTVec ZAM_OpTemplate::ParseType(const string& spec) const
+OCVec ZAM_OpTemplate::ParseType(const string& spec) const
 	{
-	OTVec ots;
+	OCVec ocs;
 
 	const char* types = spec.c_str();
 	while ( *types )
 		{
-		ZAM_OperandClass ot = ZAM_OC_NONE;
+		ZAM_OperandClass oc = ZAM_OC_NONE;
 		switch ( *types )
 			{
 			case 'C':
-				ot = ZAM_OC_CONSTANT;
+				oc = ZAM_OC_CONSTANT;
 				break;
 			case 'F':
-				ot = ZAM_OC_ASSIGN_FIELD;
+				oc = ZAM_OC_ASSIGN_FIELD;
 				break;
 			case 'H':
-				ot = ZAM_OC_EVENT_HANDLER;
+				oc = ZAM_OC_EVENT_HANDLER;
 				break;
 			case 'L':
-				ot = ZAM_OC_LIST;
+				oc = ZAM_OC_LIST;
 				break;
 			case 'O':
-				ot = ZAM_OC_AUX;
+				oc = ZAM_OC_AUX;
 				break;
 			case 'R':
-				ot = ZAM_OC_RECORD_FIELD;
+				oc = ZAM_OC_RECORD_FIELD;
 				break;
 			case 'V':
-				ot = ZAM_OC_VAR;
+				oc = ZAM_OC_VAR;
 				break;
 			case 'i':
-				ot = ZAM_OC_INT;
+				oc = ZAM_OC_INT;
 				break;
 
 			case 'X':
-				ot = ZAM_OC_NONE;
+				oc = ZAM_OC_NONE;
 				break;
 
 			default:
@@ -515,12 +515,12 @@ OTVec ZAM_OpTemplate::ParseType(const string& spec) const
 				break;
 			}
 
-		ots.push_back(ot);
+		ocs.push_back(oc);
 
 		++types;
 		}
 
-	return ots;
+	return ocs;
 	}
 
 string ZAM_OpTemplate::GatherEval()
@@ -559,29 +559,29 @@ int ZAM_OpTemplate::ExtractTypeParam(const string& arg)
 
 // Maps an operand type to a character mnemonic used to distinguish
 // it from others.
-unordered_map<ZAM_OperandClass, char> ZAM_OpTemplate::ot_to_char = {
+unordered_map<ZAM_OperandClass, char> ZAM_OpTemplate::oc_to_char = {
 	{ZAM_OC_AUX, 'O'},          {ZAM_OC_CONSTANT, 'C'},     {ZAM_OC_EVENT_HANDLER, 'H'},
 	{ZAM_OC_ASSIGN_FIELD, 'F'}, {ZAM_OC_INT, 'i'},          {ZAM_OC_LIST, 'L'},
 	{ZAM_OC_NONE, 'X'},         {ZAM_OC_RECORD_FIELD, 'R'}, {ZAM_OC_VAR, 'V'},
 };
 
-void ZAM_OpTemplate::InstantiateOp(const OTVec& ot, bool do_vec)
+void ZAM_OpTemplate::InstantiateOp(const OCVec& oc, bool do_vec)
 	{
-	auto method = MethodName(ot);
+	auto method = MethodName(oc);
 
-	InstantiateOp(method, ot, ZIC_REGULAR);
+	InstantiateOp(method, oc, ZIC_REGULAR);
 
 	if ( IncludesFieldOp() )
-		InstantiateOp(method, ot, ZIC_FIELD);
+		InstantiateOp(method, oc, ZIC_FIELD);
 
 	if ( do_vec )
-		InstantiateOp(method, ot, ZIC_VEC);
+		InstantiateOp(method, oc, ZIC_VEC);
 
 	if ( IsConditionalOp() )
-		InstantiateOp(method, ot, ZIC_COND);
+		InstantiateOp(method, oc, ZIC_COND);
 	}
 
-void ZAM_OpTemplate::InstantiateOp(const string& method, const OTVec& ot,
+void ZAM_OpTemplate::InstantiateOp(const string& method, const OCVec& oc,
                                    ZAM_InstClass zc)
 	{
 	string suffix = "";
@@ -594,17 +594,17 @@ void ZAM_OpTemplate::InstantiateOp(const string& method, const OTVec& ot,
 		suffix = "_cond";
 
 	if ( ! IsInternalOp() )
-		InstantiateMethod(method, suffix, ot, zc);
+		InstantiateMethod(method, suffix, oc, zc);
 
 	if ( IsAssignOp() )
-		InstantiateAssignOp(ot, suffix);
+		InstantiateAssignOp(oc, suffix);
 	else
 		{
-		InstantiateEval(ot, suffix, zc);
+		InstantiateEval(oc, suffix, zc);
 
 		if ( HasAssignmentLess() )
 			{
-			auto op_string = "_" + OpSuffix(ot);
+			auto op_string = "_" + OpSuffix(oc);
 			auto op = g->GenOpCode(this, op_string);
 			GenAssignmentlessVersion(op);
 			}
@@ -615,21 +615,21 @@ void ZAM_OpTemplate::GenAssignmentlessVersion(const string& op)
 	{
 	EmitTo(AssignFlavor);
 	Emit("assignmentless_op[" + op + "] = " + AssignmentLessOp() + ";");
-	Emit("assignmentless_op_type[" + op + "] = " + AssignmentLessOpType() + ";");
+	Emit("assignmentless_op_class[" + op + "] = " + AssignmentLessOpClass() + ";");
 	}
 
 void ZAM_OpTemplate::InstantiateMethod(const string& m, const string& suffix,
-                                       const OTVec& ot_orig, ZAM_InstClass zc)
+                                       const OCVec& oc_orig, ZAM_InstClass zc)
 	{
 	if ( IsInternalOp() )
 		return;
 
-	auto ot = ot_orig;
+	auto oc = oc_orig;
 	if ( zc == ZIC_FIELD )
 		// Need to make room for the field offset.
-		ot.emplace_back(ZAM_OC_INT);
+		oc.emplace_back(ZAM_OC_INT);
 
-	auto decls = MethodDeclare(ot, zc);
+	auto decls = MethodDeclare(oc, zc);
 
 	EmitTo(MethodDecl);
 	Emit("const ZAMStmt " + m + suffix + "(" + decls + ");");
@@ -638,7 +638,7 @@ void ZAM_OpTemplate::InstantiateMethod(const string& m, const string& suffix,
 	Emit("const ZAMStmt ZAMCompiler::" + m + suffix + "(" + decls + ")");
 	BeginBlock();
 
-	InstantiateMethodCore(ot, suffix, zc);
+	InstantiateMethodCore(oc, suffix, zc);
 
 	if ( HasPostMethod() )
 		Emit(GetPostMethod());
@@ -650,7 +650,7 @@ void ZAM_OpTemplate::InstantiateMethod(const string& m, const string& suffix,
 	NL();
 	}
 
-void ZAM_OpTemplate::InstantiateMethodCore(const OTVec& ot, const string& suffix,
+void ZAM_OpTemplate::InstantiateMethodCore(const OCVec& oc, const string& suffix,
                                            ZAM_InstClass zc)
 	{
 	if ( HasCustomMethod() )
@@ -659,35 +659,35 @@ void ZAM_OpTemplate::InstantiateMethodCore(const OTVec& ot, const string& suffix
 		return;
 		}
 
-	assert(! ot.empty());
+	assert(! oc.empty());
 
-	string full_suffix = "_" + OpSuffix(ot) + suffix;
+	string full_suffix = "_" + OpSuffix(oc) + suffix;
 
 	Emit("ZInstI z;");
 
-	if ( ot[0] == ZAM_OC_AUX )
+	if ( oc[0] == ZAM_OC_AUX )
 		{
 		auto op = g->GenOpCode(this, full_suffix, zc);
 		Emit("z = ZInstI(" + op + ");");
 		return;
 		}
 
-	if ( ot[0] == ZAM_OC_NONE )
+	if ( oc[0] == ZAM_OC_NONE )
 		{
 		auto op = g->GenOpCode(this, full_suffix, zc);
 		Emit("z = GenInst(" + op + ");");
 		return;
 		}
 
-	if ( ot.size() > 1 && ot[1] == ZAM_OC_AUX )
+	if ( oc.size() > 1 && oc[1] == ZAM_OC_AUX )
 		{
 		auto op = g->GenOpCode(this, full_suffix, zc);
 		Emit("z = ZInstI(" + op + ", Frame1Slot(n, " + op + "));");
 		return;
 		}
 
-	ArgsManager args(ot, zc);
-	BuildInstruction(ot, args.Params(), full_suffix, zc);
+	ArgsManager args(oc, zc);
+	BuildInstruction(oc, args.Params(), full_suffix, zc);
 
 	auto& tp = GetTypeParam();
 	if ( tp )
@@ -698,7 +698,7 @@ void ZAM_OpTemplate::InstantiateMethodCore(const OTVec& ot, const string& suffix
 		Emit("z.t2 = " + args.NthParam(*tp2) + "->GetType();");
 	}
 
-void ZAM_OpTemplate::BuildInstruction(const OTVec& ot, const string& params,
+void ZAM_OpTemplate::BuildInstruction(const OCVec& oc, const string& params,
                                       const string& suffix, ZAM_InstClass zc)
 	{
 	auto op = g->GenOpCode(this, suffix, zc);
@@ -711,37 +711,37 @@ void fail(const char* msg, const string& eval)
 	exit(1);
 	}
 
-static bool skippable_ot(ZAM_OperandClass ot)
+static bool skippable_ot(ZAM_OperandClass oc)
 	{
-	return ot == ZAM_OC_EVENT_HANDLER || ot == ZAM_OC_AUX || ot == ZAM_OC_LIST;
+	return oc == ZAM_OC_EVENT_HANDLER || oc == ZAM_OC_AUX || oc == ZAM_OC_LIST;
 	}
 
-string ZAM_OpTemplate::ExpandParams(const OTVec& ot, string eval, const vector<string>& accessors) const
+string ZAM_OpTemplate::ExpandParams(const OCVec& oc, string eval, const vector<string>& accessors) const
 	{
 	auto have_target = eval.find("$$") != string::npos;
 
 	auto fl = GetOp1Flavor();
 	auto need_target = fl == "OP1_WRITE";
 
-	auto ot_size = ot.size();
-	if ( ot_size > 0 )
+	auto oc_size = oc.size();
+	if ( oc_size > 0 )
 		{
-		auto ot0 = ot[0];
+		auto oc0 = oc[0];
 
-		if ( ot0 == ZAM_OC_NONE || ot0 == ZAM_OC_AUX )
+		if ( oc0 == ZAM_OC_NONE || oc0 == ZAM_OC_AUX )
 			{
-			--ot_size;
+			--oc_size;
 			need_target = false;
 			}
 
-		else if ( ot0 == ZAM_OC_INT )
+		else if ( oc0 == ZAM_OC_INT )
 			need_target = false;
 		}
 
-	while ( ot_size > 0 && skippable_ot(ot[ot_size - 1]) )
-		--ot_size;
+	while ( oc_size > 0 && skippable_ot(oc[oc_size - 1]) )
+		--oc_size;
 
-	auto max_param = ot_size;
+	auto max_param = oc_size;
 
 	if ( need_target && ! have_target )
 		fail("eval missing $$", eval);
@@ -789,12 +789,12 @@ string ZAM_OpTemplate::ExpandParams(const OTVec& ot, string eval, const vector<s
 	bool const_seen = false;
 	bool int_seen = false;
 
-	for ( size_t i = 0; i < ot_size; ++i )
+	for ( size_t i = 0; i < oc_size; ++i )
 		{
 		string op;
 		bool needs_accessor = true;
 
-		switch ( ot[i] ) {
+		switch ( oc[i] ) {
 		case ZAM_OC_VAR:
 			if ( int_seen )
 				fail("'V' type specifier after 'i' specifier", eval);
@@ -819,7 +819,7 @@ string ZAM_OpTemplate::ExpandParams(const OTVec& ot, string eval, const vector<s
 			break;
 
 		default:
-			fail("unexpected ot type", eval);
+			fail("unexpected oc type", eval);
 			break;
 		}
 
@@ -841,23 +841,23 @@ string ZAM_OpTemplate::ExpandParams(const OTVec& ot, string eval, const vector<s
 	return eval;
 	}
 
-void ZAM_OpTemplate::InstantiateEval(const OTVec& ot, const string& suffix,
+void ZAM_OpTemplate::InstantiateEval(const OCVec& oc, const string& suffix,
                                      ZAM_InstClass zc)
 	{
 	if ( NoEval() )
 		return;
 
-	auto eval = ExpandParams(ot, GetEval(), accessors);
+	auto eval = ExpandParams(oc, GetEval(), accessors);
 
-	GenEval(Eval, OpSuffix(ot), suffix, eval, zc);
+	GenEval(Eval, OpSuffix(oc), suffix, eval, zc);
 	}
 
-void ZAM_OpTemplate::GenEval(EmitTarget et, const string& ot_str, const string& op_suffix, const string& eval, ZAM_InstClass zc)
+void ZAM_OpTemplate::GenEval(EmitTarget et, const string& oc_str, const string& op_suffix, const string& eval, ZAM_InstClass zc)
 	{
-	auto op_code = g->GenOpCode(this, "_" + ot_str + op_suffix, zc);
+	auto op_code = g->GenOpCode(this, "_" + oc_str + op_suffix, zc);
 
 	if ( et == Eval )
-		GenDesc(op_code, ot_str, eval);
+		GenDesc(op_code, oc_str, eval);
 
 	EmitTo(et);
 	Emit("case " + op_code + ":");
@@ -868,19 +868,19 @@ void ZAM_OpTemplate::GenEval(EmitTarget et, const string& ot_str, const string& 
 	NL();
 	}
 
-void ZAM_OpTemplate::GenDesc(const string& op_code, const string& ot_str, const string& eval)
+void ZAM_OpTemplate::GenDesc(const string& op_code, const string& oc_str, const string& eval)
 	{
-	StartDesc(op_code, ot_str);
+	StartDesc(op_code, oc_str);
 	Emit(eval);
 	EndDesc();
 	}
 
-void ZAM_OpTemplate::StartDesc(const string& op_code, const string& ot_str)
+void ZAM_OpTemplate::StartDesc(const string& op_code, const string& oc_str)
 	{
 	EmitTo(Desc);
 	Emit("{ " + op_code + ",");
 	BeginBlock();
-	Emit("\"" + ot_str + "\",");
+	Emit("\"" + oc_str + "\",");
 	StartString();
 	}
 
@@ -891,12 +891,12 @@ void ZAM_OpTemplate::EndDesc()
 	Emit("},");
 	}
 
-void ZAM_OpTemplate::InstantiateAssignOp(const OTVec& ot, const string& suffix)
+void ZAM_OpTemplate::InstantiateAssignOp(const OCVec& oc, const string& suffix)
 	{
 	// First, create a generic version of the operand, which the
 	// ZAM compiler uses to find specific-flavored versions.
-	auto ot_str = OpSuffix(ot);
-	auto op_string = "_" + ot_str;
+	auto oc_str = OpSuffix(oc);
+	auto op_string = "_" + oc_str;
 	auto generic_op = g->GenOpCode(this, op_string);
 	auto flavor_ind = "assignment_flavor[" + generic_op + "]";
 
@@ -919,8 +919,8 @@ void ZAM_OpTemplate::InstantiateAssignOp(const OTVec& ot, const string& suffix)
 				GenAssignmentlessVersion(op);
 			}
 
-		StartDesc(op, ot_str);
-		GenAssignOpCore(ot, eval, ti.accessor, ti.is_managed);
+		StartDesc(op, oc_str);
+		GenAssignOpCore(oc, eval, ti.accessor, ti.is_managed);
 		if ( ! post_eval.empty() )
 			Emit(post_eval);
 		EndDesc();
@@ -928,7 +928,7 @@ void ZAM_OpTemplate::InstantiateAssignOp(const OTVec& ot, const string& suffix)
 		EmitTo(Eval);
 		Emit("case " + op + ":");
 		BeginBlock();
-		GenAssignOpCore(ot, eval, ti.accessor, ti.is_managed);
+		GenAssignOpCore(oc, eval, ti.accessor, ti.is_managed);
 		if ( ! post_eval.empty() )
 			Emit(post_eval);
 		Emit("break;");
@@ -938,21 +938,21 @@ void ZAM_OpTemplate::InstantiateAssignOp(const OTVec& ot, const string& suffix)
 	post_eval.clear();
 	}
 
-void ZAM_OpTemplate::GenAssignOpCore(const OTVec& ot, const string& eval,
+void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval,
                                      const string& accessor, bool is_managed)
 	{
 	if ( HasAssignVal() )
 		{
-		GenAssignOpValCore(ot, eval, accessor, is_managed);
+		GenAssignOpValCore(oc, eval, accessor, is_managed);
 		return;
 		}
 
 	if ( ! eval.empty() )
 		g->Gripe("assign-op should not have an \"eval\"", eval);
 
-	auto lhs_field = (ot[0] == ZAM_OC_ASSIGN_FIELD);
-	auto rhs_field = lhs_field && ot.size() > 2 && (ot[2] == ZAM_OC_INT);
-	auto constant_op = (ot[1] == ZAM_OC_CONSTANT);
+	auto lhs_field = (oc[0] == ZAM_OC_ASSIGN_FIELD);
+	auto rhs_field = lhs_field && oc.size() > 2 && (oc[2] == ZAM_OC_INT);
+	auto constant_op = (oc[1] == ZAM_OC_CONSTANT);
 
 	string rhs = constant_op ? "z.c" : "frame[z.v2]";
 
@@ -1043,7 +1043,7 @@ void ZAM_OpTemplate::GenAssignOpCore(const OTVec& ot, const string& eval,
 		Emit("r->Modified();");
 	}
 
-void ZAM_OpTemplate::GenAssignOpValCore(const OTVec& ot, const string& orig_eval, const string& accessor, bool is_managed)
+void ZAM_OpTemplate::GenAssignOpValCore(const OCVec& oc, const string& orig_eval, const string& accessor, bool is_managed)
 	{
 	auto v = GetAssignVal();
 
@@ -1079,25 +1079,25 @@ void ZAM_OpTemplate::GenAssignOpValCore(const OTVec& ot, const string& orig_eval
 	else
 		eval += "$$ = ZVal(" + rhs + ");\n";
 
-	Emit(ExpandParams(ot, eval));
+	Emit(ExpandParams(oc, eval));
 	}
 
-string ZAM_OpTemplate::MethodName(const OTVec& ot) const
+string ZAM_OpTemplate::MethodName(const OCVec& oc) const
 	{
-	return base_name + OpSuffix(ot);
+	return base_name + OpSuffix(oc);
 	}
 
-string ZAM_OpTemplate::MethodDeclare(const OTVec& ot, ZAM_InstClass zc)
+string ZAM_OpTemplate::MethodDeclare(const OCVec& oc, ZAM_InstClass zc)
 	{
-	ArgsManager args(ot, zc);
+	ArgsManager args(oc, zc);
 	return args.Decls();
 	}
 
-string ZAM_OpTemplate::OpSuffix(const OTVec& ot) const
+string ZAM_OpTemplate::OpSuffix(const OCVec& oc) const
 	{
 	string os;
-	for ( auto& o : ot )
-		os += ot_to_char[o];
+	for ( auto& o : oc )
+		os += oc_to_char[o];
 	return os;
 	}
 
@@ -1283,48 +1283,48 @@ void ZAM_ExprOpTemplate::Parse(const string& attr, const string& line, const Wor
 
 void ZAM_ExprOpTemplate::Instantiate()
 	{
-	if ( ! op_types_vec.empty() )
+	if ( ! op_classes_vec.empty() )
 		g->Gripe("expressions cannot use \"types\"", op_loc);
 
-	InstantiateOp(OperandTypes(), IncludesVectorOp());
+	InstantiateOp(OperandClasses(), IncludesVectorOp());
 
-	if ( op_types.size() > 1 && op_types[1] == ZAM_OC_CONSTANT )
-		InstantiateC1(op_types, op_types.size() - 1);
-	if ( op_types.size() > 2 && op_types[2] == ZAM_OC_CONSTANT )
-		InstantiateC2(op_types, op_types.size() - 1);
-	if ( op_types.size() > 3 && op_types[3] == ZAM_OC_CONSTANT )
-		InstantiateC3(op_types);
+	if ( op_classes.size() > 1 && op_classes[1] == ZAM_OC_CONSTANT )
+		InstantiateC1(op_classes, op_classes.size() - 1);
+	if ( op_classes.size() > 2 && op_classes[2] == ZAM_OC_CONSTANT )
+		InstantiateC2(op_classes, op_classes.size() - 1);
+	if ( op_classes.size() > 3 && op_classes[3] == ZAM_OC_CONSTANT )
+		InstantiateC3(op_classes);
 
 	bool all_var = true;
-	for ( auto i = 1U; i < op_types.size(); ++i )
-		if ( op_types[i] != ZAM_OC_VAR )
+	for ( auto i = 1U; i < op_classes.size(); ++i )
+		if ( op_classes[i] != ZAM_OC_VAR )
 			all_var = false;
 
 	if ( all_var )
-		InstantiateV(op_types);
+		InstantiateV(op_classes);
 
-	if ( op_types.size() == 3 && op_types[1] == ZAM_OC_RECORD_FIELD && op_types[2] == ZAM_OC_INT )
-		InstantiateV(op_types);
+	if ( op_classes.size() == 3 && op_classes[1] == ZAM_OC_RECORD_FIELD && op_classes[2] == ZAM_OC_INT )
+		InstantiateV(op_classes);
 	}
 
-void ZAM_ExprOpTemplate::InstantiateC1(const OTVec& ots, size_t arity, bool do_vec)
+void ZAM_ExprOpTemplate::InstantiateC1(const OCVec& ocs, size_t arity, bool do_vec)
 	{
 	string args = "lhs, r1->AsConstExpr()";
 
-	if ( arity == 1 && ots[0] == ZAM_OC_RECORD_FIELD )
+	if ( arity == 1 && ocs[0] == ZAM_OC_RECORD_FIELD )
 		args += ", rhs->AsFieldExpr()->Field()";
 
 	else if ( arity > 1 )
 		{
 		args += ", ";
 
-		if ( ots[2] == ZAM_OC_RECORD_FIELD )
+		if ( ocs[2] == ZAM_OC_RECORD_FIELD )
 			args += "rhs->AsFieldExpr()->Field()";
 		else
 			args += "r2->AsNameExpr()";
 		}
 
-	auto m = MethodName(ots);
+	auto m = MethodName(ocs);
 
 	EmitTo(C1Def);
 
@@ -1342,14 +1342,14 @@ void ZAM_ExprOpTemplate::InstantiateC1(const OTVec& ots, size_t arity, bool do_v
 		}
 	}
 
-void ZAM_ExprOpTemplate::InstantiateC2(const OTVec& ots, size_t arity)
+void ZAM_ExprOpTemplate::InstantiateC2(const OCVec& ocs, size_t arity)
 	{
 	string args = "lhs, r1->AsNameExpr(), r2->AsConstExpr()";
 
 	if ( arity == 3 )
 		args += ", r3->AsNameExpr()";
 
-	auto method = MethodName(ots);
+	auto method = MethodName(ocs);
 	auto m = method.c_str();
 
 	EmitTo(C2Def);
@@ -1362,22 +1362,22 @@ void ZAM_ExprOpTemplate::InstantiateC2(const OTVec& ots, size_t arity)
 		}
 	}
 
-void ZAM_ExprOpTemplate::InstantiateC3(const OTVec& ots)
+void ZAM_ExprOpTemplate::InstantiateC3(const OCVec& ocs)
 	{
 	EmitTo(C3Def);
-	Emit("case EXPR_" + cname + ":\treturn " + MethodName(ots) +
+	Emit("case EXPR_" + cname + ":\treturn " + MethodName(ocs) +
 	     "(lhs, r1->AsNameExpr(), r2->AsNameExpr(), r3->AsConstExpr());");
 	}
 
-void ZAM_ExprOpTemplate::InstantiateV(const OTVec& ots)
+void ZAM_ExprOpTemplate::InstantiateV(const OCVec& ocs)
 	{
-	auto m = MethodName(ots);
+	auto m = MethodName(ocs);
 
 	string args = "lhs, r1->AsNameExpr()";
 
-	if ( ots.size() >= 3 )
+	if ( ocs.size() >= 3 )
 		{
-		if ( ots[2] == ZAM_OC_INT )
+		if ( ocs[2] == ZAM_OC_INT )
 			{
 			string acc_flav = IncludesFieldOp() ? "Has" : "";
 			args += ", rhs->As" + acc_flav + "FieldExpr()->Field()";
@@ -1385,7 +1385,7 @@ void ZAM_ExprOpTemplate::InstantiateV(const OTVec& ots)
 		else
 			args += ", r2->AsNameExpr()";
 
-		if ( ots.size() == 4 )
+		if ( ocs.size() == 4 )
 			args += ", r3->AsNameExpr()";
 		}
 
@@ -1538,21 +1538,21 @@ string EvalInstance::OpMarker() const
 	return "_" + find_type_info(op1_et).suffix + find_type_info(op2_et).suffix;
 	}
 
-void ZAM_ExprOpTemplate::InstantiateEval(const OTVec& ot_orig,
+void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
                                          const string& suffix, ZAM_InstClass zc)
 	{
 	if ( expr_types.empty() )
 		{ // No operand types to expand over.
-		ZAM_OpTemplate::InstantiateEval(ot_orig, suffix, zc);
+		ZAM_OpTemplate::InstantiateEval(oc_orig, suffix, zc);
 		return;
 		}
 
-	auto ot = ot_orig;
+	auto oc = oc_orig;
 	if ( zc == ZIC_FIELD )
 		// Make room for the offset.
-		ot.emplace_back(ZAM_OC_INT);
+		oc.emplace_back(ZAM_OC_INT);
 
-	auto ot_str = OpSuffix(ot);
+	auto oc_str = OpSuffix(oc);
 
 	// Some of these might not wind up being used, but no harm in
 	// initializing them in case they are.
@@ -1576,10 +1576,10 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OTVec& ot_orig,
 
 		auto op1_offset = zc == ZIC_COND ? 1 : 2;
 		auto op2_offset = op1_offset + 1;
-		bool ot1_const = ot[1] == ZAM_OC_CONSTANT;
-		bool ot2_const = Arity() >= 2 && ot[2] == ZAM_OC_CONSTANT;
+		bool oc1_const = oc[1] == ZAM_OC_CONSTANT;
+		bool oc2_const = Arity() >= 2 && oc[2] == ZAM_OC_CONSTANT;
 
-		if ( ot1_const )
+		if ( oc1_const )
 			{
 			op1 = "z.c";
 			--op2_offset;
@@ -1589,13 +1589,13 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OTVec& ot_orig,
 			{
 			op1 = "frame[z.v" + to_string(op1_offset) + "]";
 
-			if ( Arity() > 1 && ot[2] == ZAM_OC_VAR )
+			if ( Arity() > 1 && oc[2] == ZAM_OC_VAR )
 				branch_target += "3";
 			else
 				branch_target += "2";
 			}
 
-		if ( ot2_const )
+		if ( oc2_const )
 			op2 = "z.c";
 		else
 			op2 = "frame[z.v" + to_string(op2_offset) + "]";
@@ -1611,7 +1611,7 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OTVec& ot_orig,
 				// ... and slots are numbered starting at 1.
 				+1;
 
-			if ( ot1_const || ot2_const )
+			if ( oc1_const || oc2_const )
 				// One of the operand slots won't be needed
 				// due to the presence of a constant.
 				// (It's never the case that both operands
@@ -1738,7 +1738,7 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OTVec& ot_orig,
 
 		auto full_suffix = suffix + ei.OpMarker();
 
-		GenEval(emit_target, ot_str, full_suffix, eval, zc);
+		GenEval(emit_target, oc_str, full_suffix, eval, zc);
 
 		if ( zc == ZIC_VEC )
 			{
@@ -1747,10 +1747,10 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OTVec& ot_orig,
 			if ( Arity() == 2 )
 				dispatch_params += ", frame[z.v3].AsVector()";
 
-			auto op_code = g->GenOpCode(this, "_" + ot_str + full_suffix);
+			auto op_code = g->GenOpCode(this, "_" + oc_str + full_suffix);
 			auto dispatch = "vec_exec(" + op_code + ", Z_TYPE, " + dispatch_params + ", z);";
 
-			GenEval(Eval, ot_str, full_suffix, dispatch, zc);
+			GenEval(Eval, oc_str, full_suffix, dispatch, zc);
 			}
 		}
 	}
@@ -1773,16 +1773,16 @@ void ZAM_UnaryExprOpTemplate::Instantiate()
 	{
 	UnaryInstantiate();
 
-	OTVec ots = {ZAM_OC_VAR, ZAM_OC_CONSTANT};
+	OCVec ocs = {ZAM_OC_VAR, ZAM_OC_CONSTANT};
 
 	if ( ! NoConst() )
-		InstantiateC1(ots, 1, IncludesVectorOp());
+		InstantiateC1(ocs, 1, IncludesVectorOp());
 
-	ots[1] = ZAM_OC_VAR;
-	InstantiateV(ots);
+	ocs[1] = ZAM_OC_VAR;
+	InstantiateV(ocs);
 	}
 
-void ZAM_UnaryExprOpTemplate::BuildInstruction(const OTVec& ot,
+void ZAM_UnaryExprOpTemplate::BuildInstruction(const OCVec& oc,
                                                const string& params, const string& suffix,
                                                ZAM_InstClass zc)
 	{
@@ -1790,14 +1790,14 @@ void ZAM_UnaryExprOpTemplate::BuildInstruction(const OTVec& ot,
 
 	if ( ets.size() == 1 && ets.count(ZAM_TYPE_NONE) == 1 )
 		{
-		ZAM_ExprOpTemplate::BuildInstruction(ot, params, suffix, zc);
+		ZAM_ExprOpTemplate::BuildInstruction(oc, params, suffix, zc);
 		return;
 		}
 
-	auto constant_op = ot[1] == ZAM_OC_CONSTANT;
+	auto constant_op = oc[1] == ZAM_OC_CONSTANT;
 	string type_src = constant_op ? "c" : "n2";
 
-	if ( ot[0] == ZAM_OC_ASSIGN_FIELD )
+	if ( oc[0] == ZAM_OC_ASSIGN_FIELD )
 		{
 		type_src = constant_op ? "n" : "n1";
 		Emit("auto " + type_src + " = flhs->GetOp1()->AsNameExpr();");
@@ -1858,46 +1858,46 @@ void ZAM_AssignOpTemplate::Parse(const string& attr, const string& line, const W
 
 void ZAM_AssignOpTemplate::Instantiate()
 	{
-	if ( op_types.size() != 1 )
+	if ( op_classes.size() != 1 )
 		g->Gripe("operation needs precisely one \"type\"", op_loc);
-	if ( ! op_types_vec.empty() )
+	if ( ! op_classes_vec.empty() )
 		g->Gripe("operation cannot use \"types\"", op_loc);
 
-	OTVec ots;
-	ots.push_back(op_types[0]);
+	OCVec ocs;
+	ocs.push_back(op_classes[0]);
 
 	// Build constant/variable versions ...
-	ots.push_back(ZAM_OC_CONSTANT);
+	ocs.push_back(ZAM_OC_CONSTANT);
 
-	if ( ots[0] == ZAM_OC_RECORD_FIELD )
-		ots.push_back(ZAM_OC_INT);
+	if ( ocs[0] == ZAM_OC_RECORD_FIELD )
+		ocs.push_back(ZAM_OC_INT);
 
-	InstantiateOp(ots, false);
+	InstantiateOp(ocs, false);
 	if ( IsFieldOp() )
-		InstantiateC1(ots, 1);
+		InstantiateC1(ocs, 1);
 
-	ots[1] = ZAM_OC_VAR;
-	InstantiateOp(ots, false);
+	ocs[1] = ZAM_OC_VAR;
+	InstantiateOp(ocs, false);
 
 	// ... and for assignments to fields, additional field versions.
-	if ( ots[0] == ZAM_OC_ASSIGN_FIELD )
+	if ( ocs[0] == ZAM_OC_ASSIGN_FIELD )
 		{
-		ots.push_back(ZAM_OC_INT);
-		InstantiateOp(ots, false);
+		ocs.push_back(ZAM_OC_INT);
+		InstantiateOp(ocs, false);
 
-		ots[1] = ZAM_OC_CONSTANT;
-		InstantiateOp(ots, false);
+		ocs[1] = ZAM_OC_CONSTANT;
+		InstantiateOp(ocs, false);
 		}
 
 	else if ( IsFieldOp() )
-		InstantiateV(ots);
+		InstantiateV(ocs);
 	}
 
 void ZAM_BinaryExprOpTemplate::Instantiate()
 	{
 	// As usual, the first slot receives the operator's result.
-	OTVec ots = {ZAM_OC_VAR};
-	ots.resize(3);
+	OCVec ocs = {ZAM_OC_VAR};
+	ocs.resize(3);
 
 	// Build each combination for constant/variable operand,
 	// except skip constant/constant as that is always folded.
@@ -1905,32 +1905,32 @@ void ZAM_BinaryExprOpTemplate::Instantiate()
 	// We only include vector operations when both operands
 	// are non-constants.
 
-	ots[1] = ZAM_OC_CONSTANT;
-	ots[2] = ZAM_OC_VAR;
-	InstantiateOp(ots, false);
+	ocs[1] = ZAM_OC_CONSTANT;
+	ocs[2] = ZAM_OC_VAR;
+	InstantiateOp(ocs, false);
 
 	if ( ! IsInternalOp() )
-		InstantiateC1(ots, 2, false);
+		InstantiateC1(ocs, 2, false);
 
-	ots[1] = ZAM_OC_VAR;
-	ots[2] = ZAM_OC_CONSTANT;
-	InstantiateOp(ots, false);
-
-	if ( ! IsInternalOp() )
-		InstantiateC2(ots, 2);
-
-	ots[2] = ZAM_OC_VAR;
-	InstantiateOp(ots, IncludesVectorOp());
+	ocs[1] = ZAM_OC_VAR;
+	ocs[2] = ZAM_OC_CONSTANT;
+	InstantiateOp(ocs, false);
 
 	if ( ! IsInternalOp() )
-		InstantiateV(ots);
+		InstantiateC2(ocs, 2);
+
+	ocs[2] = ZAM_OC_VAR;
+	InstantiateOp(ocs, IncludesVectorOp());
+
+	if ( ! IsInternalOp() )
+		InstantiateV(ocs);
 	}
 
-void ZAM_BinaryExprOpTemplate::BuildInstruction(const OTVec& ot,
+void ZAM_BinaryExprOpTemplate::BuildInstruction(const OCVec& oc,
                                                 const string& params, const string& suffix,
                                                 ZAM_InstClass zc)
 	{
-	auto constant_op = ot[1] == ZAM_OC_CONSTANT;
+	auto constant_op = oc[1] == ZAM_OC_CONSTANT;
 	string type_src = constant_op ? "c" : "n2";
 	auto type_suffix = zc == ZIC_VEC ? "->Yield();" : ";";
 	Emit("auto t = " + type_src + "->GetType()" + type_suffix);
@@ -1958,7 +1958,7 @@ void ZAM_RelationalExprOpTemplate::Instantiate()
 	NL();
 	}
 
-void ZAM_RelationalExprOpTemplate::BuildInstruction(const OTVec& ot,
+void ZAM_RelationalExprOpTemplate::BuildInstruction(const OCVec& oc,
                                                     const string& params, const string& suffix,
                                                     ZAM_InstClass zc)
 	{
@@ -1966,16 +1966,16 @@ void ZAM_RelationalExprOpTemplate::BuildInstruction(const OTVec& ot,
 
 	if ( zc == ZIC_COND )
 		{
-		if ( ot[1] == ZAM_OC_CONSTANT )
+		if ( oc[1] == ZAM_OC_CONSTANT )
 			op1 = "c";
-		else if ( ot[2] == ZAM_OC_CONSTANT )
+		else if ( oc[2] == ZAM_OC_CONSTANT )
 			op1 = "n";
 		else
 			op1 = "n1";
 		}
 	else
 		{
-		if ( ot[1] == ZAM_OC_CONSTANT )
+		if ( oc[1] == ZAM_OC_CONSTANT )
 			op1 = "c";
 		else
 			op1 = "n2";
@@ -2019,10 +2019,10 @@ void ZAM_InternalBinaryOpTemplate::Parse(const string& attr, const string& line,
 		ZAM_BinaryExprOpTemplate::Parse(attr, line, words);
 	}
 
-void ZAM_InternalBinaryOpTemplate::InstantiateEval(const OTVec& ot,
+void ZAM_InternalBinaryOpTemplate::InstantiateEval(const OCVec& oc,
                                                    const string& suffix, ZAM_InstClass zc)
 	{
-	assert(ot.size() == 3);
+	assert(oc.size() == 3);
 
 	auto& ets = ExprTypes();
 	if ( ets.size() != 1 )
@@ -2041,9 +2041,9 @@ void ZAM_InternalBinaryOpTemplate::InstantiateEval(const OTVec& ot,
 	accessors.push_back(op1_accessor);
 	accessors.push_back(op2_accessor);
 
-	auto eval = ExpandParams(ot, GetEval(), accessors);
+	auto eval = ExpandParams(oc, GetEval(), accessors);
 
-	GenEval(Eval, OpSuffix(ot), suffix, eval, zc);
+	GenEval(Eval, OpSuffix(oc), suffix, eval, zc);
 	}
 
 void ZAM_InternalOpTemplate::Parse(const string& attr, const string& line, const Words& words)
