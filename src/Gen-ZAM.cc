@@ -244,7 +244,7 @@ void ZAM_OpTemplate::Build()
 		}
 
 	if ( ! op_classes.empty() && ! op_classes_vec.empty() )
-		g->Gripe("\"type\" and \"types\" are mutually exclusive", op_loc);
+		g->Gripe("\"class\" and \"classes\" are mutually exclusive", op_loc);
 	}
 
 void ZAM_OpTemplate::Instantiate()
@@ -257,7 +257,7 @@ void ZAM_OpTemplate::Instantiate()
 
 	else
 		{
-		// If one of the "types" includes a ZAM_OC_INT then build
+		// If one of the "classes" includes a ZAM_OC_INT then build
 		// up an accessor list for those. Currently, we allow those
 		// to occur in only one position.
 		int ot_int_index = -1;
@@ -267,7 +267,7 @@ void ZAM_OpTemplate::Instantiate()
 				if ( ocs[i] == ZAM_OC_INT )
 					{
 					if ( ot_int_index >= 0 && ot_int_index != i )
-						g->Gripe("multiple 'i' instances in \"types\"", op_loc);
+						g->Gripe("multiple 'i' instances in \"classes\"", op_loc);
 					ot_int_index = i;
 					}
 			}
@@ -289,10 +289,10 @@ void ZAM_OpTemplate::Instantiate()
 void ZAM_OpTemplate::InstantiatePredicate()
 	{
 	if ( ! op_classes_vec.empty() )
-		g->Gripe("\"predicate\" cannot include \"types\"", op_loc);
+		g->Gripe("\"predicate\" cannot include \"classes\"", op_loc);
 
 	if ( op_classes.empty() )
-		g->Gripe("\"predicate\" requires a \"type\"", op_loc);
+		g->Gripe("\"predicate\" requires a \"class\"", op_loc);
 
 	if ( IncludesVectorOp() )
 		g->Gripe("\"predicate\" cannot include \"vector\"", op_loc);
@@ -364,16 +364,16 @@ void ZAM_OpTemplate::Parse(const string& attr, const string& line, const Words& 
 	int num_args = -1; // -1 = don't enforce
 	int nwords = static_cast<int>(words.size());
 
-	if ( attr == "type" )
+	if ( attr == "class" )
 		{
 		if ( nwords <= 1 )
 			g->Gripe("missing argument", line);
 
 		num_args = 1;
-		op_classes = ParseType(words[1]);
+		op_classes = ParseClass(words[1]);
 		}
 
-	else if ( attr == "types" )
+	else if ( attr == "classes" )
 		{
 		if ( nwords <= 1 )
 			g->Gripe("missing argument", line);
@@ -381,7 +381,7 @@ void ZAM_OpTemplate::Parse(const string& attr, const string& line, const Words& 
 		num_args = -1;
 
 		for ( int i = 1; i < nwords; ++i )
-			op_classes_vec.push_back(ParseType(words[i]));
+			op_classes_vec.push_back(ParseClass(words[i]));
 		}
 
 	else if ( attr == "op1-read" )
@@ -471,7 +471,7 @@ void ZAM_OpTemplate::Parse(const string& attr, const string& line, const Words& 
 		g->Gripe("extraneous or missing arguments", line);
 	}
 
-OCVec ZAM_OpTemplate::ParseType(const string& spec) const
+OCVec ZAM_OpTemplate::ParseClass(const string& spec) const
 	{
 	OCVec ocs;
 
@@ -1284,7 +1284,7 @@ void ZAM_ExprOpTemplate::Parse(const string& attr, const string& line, const Wor
 void ZAM_ExprOpTemplate::Instantiate()
 	{
 	if ( ! op_classes_vec.empty() )
-		g->Gripe("expressions cannot use \"types\"", op_loc);
+		g->Gripe("expressions cannot use \"classes\"", op_loc);
 
 	InstantiateOp(OperandClasses(), IncludesVectorOp());
 
@@ -1861,7 +1861,7 @@ void ZAM_AssignOpTemplate::Instantiate()
 	if ( op_classes.size() != 1 )
 		g->Gripe("operation needs precisely one \"type\"", op_loc);
 	if ( ! op_classes_vec.empty() )
-		g->Gripe("operation cannot use \"types\"", op_loc);
+		g->Gripe("operation cannot use \"classes\"", op_loc);
 
 	OCVec ocs;
 	ocs.push_back(op_classes[0]);

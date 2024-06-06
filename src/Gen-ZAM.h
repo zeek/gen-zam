@@ -381,8 +381,8 @@ protected:
 	// words.
 	virtual void Parse(const string& attr, const string& line, const Words& words);
 
-	// Helper function that parses "type" specifications.
-	OCVec ParseType(const string& spec) const;
+	// Helper function that parses "class" specifications.
+	OCVec ParseClass(const string& spec) const;
 
 	// Scans in a C++ evaluation block, which continues until encountering
 	// a line that does not start with whitespace, or that's empty.
