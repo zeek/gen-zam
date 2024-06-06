@@ -333,14 +333,30 @@ void ZAM_OpTemplate::InstantiatePredicate()
 	auto orig_op_classes = op_classes;
 	bool no_classes = orig_op_classes[0] == ZAM_OC_NONE;
 
+	// All three forms take an additional final argument, the branch
+	// target.
+	if ( ! op_types.empty() )
+		op_types.push_back(ZAM_TYPE_INT);
+
 	// Assignment form.
 	op_classes.clear();
 	op_classes.push_back(ZAM_OC_VAR);
 	if ( ! no_classes )
 		op_classes.insert(op_classes.end(), orig_op_classes.begin(), orig_op_classes.end());
 
-	eval = "$$.int_val = " + orig_eval + ";";
+	string target_accessor;
+
+	if ( ! op_types.empty() )
+		op_types.insert(op_types.begin(), ZAM_TYPE_INT);
+	else
+		target_accessor = ".int_val";
+
+	eval = "$$" + target_accessor + " = " + orig_eval + ";";
+
 	InstantiateOp(op_classes, false);
+
+	if ( ! op_types.empty() )
+		op_types.erase(op_types.begin());
 
 	// Conditional form - branch if not true.
 	cname += "_COND";
