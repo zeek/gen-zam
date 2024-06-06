@@ -868,8 +868,13 @@ string ZAM_OpTemplate::ExpandParams(const OCVec& oc, string eval, const vector<s
 			break;
 		}
 
-		if ( needs_accessor && ! accessors.empty() && ! accessors[i].empty() )
-			op += "." + accessors[i];
+		if ( needs_accessor )
+			{
+			if ( ! accessors.empty() && ! accessors[i].empty() )
+				op += "." + accessors[i];
+			else if ( ! op_types.empty() )
+				op += "." + find_type_accessor(op_types[i]);
+			}
 
 		string pat;
 		if ( i == 0 && have_target )
