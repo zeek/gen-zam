@@ -2056,63 +2056,6 @@ void ZAM_RelationalExprOpTemplate::BuildInstruction(const OCVec& oc,
 		Emit("z.t = n1->GetType();");
 	}
 
-void ZAM_InternalBinaryOpTemplate::Parse(const string& attr, const string& line, const Words& words)
-	{
-	if ( attr == "op-accessor" )
-		{
-		if ( words.size() != 2 )
-			g->Gripe("op-accessor takes one argument", line);
-
-		SetOpAccessor(words[1]);
-		}
-
-	else if ( attr == "op1-accessor" )
-		{
-		if ( words.size() != 2 )
-			g->Gripe("op-accessor1 takes one argument", line);
-
-		SetOp1Accessor(words[1]);
-		}
-
-	else if ( attr == "op2-accessor" )
-		{
-		if ( words.size() != 2 )
-			g->Gripe("op-accessor2 takes one argument", line);
-
-		SetOp2Accessor(words[1]);
-		}
-
-	else
-		ZAM_BinaryExprOpTemplate::Parse(attr, line, words);
-	}
-
-void ZAM_InternalBinaryOpTemplate::InstantiateEval(const OCVec& oc,
-                                                   const string& suffix, ZAM_InstClass zc)
-	{
-	assert(oc.size() == 3);
-
-	auto& ets = ExprTypes();
-	if ( ets.size() != 1 )
-		Gripe("internal-binary-op's must have one op-type");
-
-	vector<string> accessors;
-
-	// The following only runs once, but given ets is an unordered_set,
-	// this is an easy way to get to the one value in it.
-	for ( auto& zt : ets )
-		{
-		auto acc = find_type_accessor(zt);
-		accessors.push_back(acc);
-		}
-
-	accessors.push_back(op1_accessor);
-	accessors.push_back(op2_accessor);
-
-	auto eval = ExpandParams(oc, GetEval(), accessors);
-
-	GenEval(Eval, OpSuffix(oc), suffix, eval, zc);
-	}
-
 void ZAM_InternalOpTemplate::Parse(const string& attr, const string& line, const Words& words)
 	{
 	if ( attr != "num-call-args" )
@@ -2613,8 +2556,6 @@ bool ZAMGen::ParseTemplate()
 		t = make_unique<ZAM_BinaryExprOpTemplate>(this, op_name);
 	else if ( op == "rel-expr-op" )
 		t = make_unique<ZAM_RelationalExprOpTemplate>(this, op_name);
-	else if ( op == "internal-binary-op" )
-		t = make_unique<ZAM_InternalBinaryOpTemplate>(this, op_name);
 	else if ( op == "internal-op" )
 		t = make_unique<ZAM_InternalOpTemplate>(this, op_name);
 	else if ( op == "predicate-op" )

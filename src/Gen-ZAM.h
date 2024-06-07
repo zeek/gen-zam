@@ -857,39 +857,6 @@ protected:
 	                      const string& suffix, ZAM_InstClass zc) override;
 	};
 
-// A version of ZAM_BinaryExprOpTemplate for binary operations generated
-// by custom methods rather than directly from the AST.
-class ZAM_InternalBinaryOpTemplate : public ZAM_BinaryExprOpTemplate
-	{
-public:
-	ZAM_InternalBinaryOpTemplate(ZAMGen* _g, string _base_name)
-		: ZAM_BinaryExprOpTemplate(_g, _base_name)
-		{
-		}
-
-	bool IsInternalOp() const override { return true; }
-
-	// The accessors used to get to the underlying Zeek script value
-	// of the first and second operand.
-	void SetOp1Accessor(string accessor) { op1_accessor = accessor; }
-	void SetOp2Accessor(string accessor) { op2_accessor = accessor; }
-	void SetOpAccessor(string accessor)
-		{
-		SetOp1Accessor(accessor);
-		SetOp2Accessor(accessor);
-		}
-
-protected:
-	void Parse(const string& attr, const string& line, const Words& words) override;
-
-	void InstantiateEval(const OCVec& oc, const string& suffix,
-	                     ZAM_InstClass zc) override;
-
-private:
-	string op1_accessor;
-	string op2_accessor;
-	};
-
 // A version of ZAM_OpTemplate for operations used internally (and not
 // corresponding to AST elements).
 class ZAM_InternalOpTemplate : public ZAM_OpTemplate
