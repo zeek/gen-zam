@@ -61,6 +61,9 @@ static unordered_map<char, ZAM_Type> type_names = {
 	{'t', ZAM_TYPE_TYPE},    {'U', ZAM_TYPE_UINT},    {'V', ZAM_TYPE_VECTOR},
 };
 
+// Inverse of the above.
+static unordered_map<ZAM_Type, char> expr_name_types;
+
 // Given a ZAM_Type, returns the corresponding TypeInfo.
 const TypeInfo& find_type_info(ZAM_Type zt)
 	{
@@ -953,6 +956,18 @@ void ZAM_OpTemplate::StartDesc(const string& op_code, const string& oc_str)
 	Emit("{ " + op_code + ",");
 	BeginBlock();
 	Emit("\"" + oc_str + "\",");
+
+	if ( op_types.empty() )
+		Emit("\"\",");
+	else
+		{
+		string ots;
+		for ( auto ot : op_types )
+			ots += expr_name_types[ot];
+
+		Emit("\"" + ots + "\", ");
+		}
+
 	StartString();
 	}
 
@@ -1229,9 +1244,6 @@ void ZAM_DirectUnaryOpTemplate::Instantiate()
 	EmitTo(DirectDef);
 	Emit("case EXPR_" + cname + ":\treturn " + direct + "(lhs, rhs);");
 	}
-
-// Inverse of the above.
-static unordered_map<ZAM_Type, char> expr_name_types;
 
 ZAM_ExprOpTemplate::ZAM_ExprOpTemplate(ZAMGen* _g, string _base_name)
 	: ZAM_OpTemplate(_g, std::move(_base_name))
@@ -1742,6 +1754,9 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 		op_types.push_back(ei.Op1_ET());
 		if ( Arity() > 1 )
 			op_types.push_back(ei.Op2_ET());
+
+		if ( zc == ZIC_FIELD )
+			op_types.push_back(ZAM_TYPE_INT);
 
 		auto op1_ei = op1 + ei.Op1Accessor(zc == ZIC_VEC);
 		auto op2_ei = op2 + ei.Op2Accessor(zc == ZIC_VEC);
