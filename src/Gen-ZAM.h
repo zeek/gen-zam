@@ -671,8 +671,11 @@ public:
 	string OpMarker() const;
 
 	const string& Eval() const { return eval; }
-	ZAM_Type LHS_ET() const { return lhs_et; }
 	bool IsDefault() const { return is_def; }
+
+	ZAM_Type LHS_ET() const { return lhs_et; }
+	ZAM_Type Op1_ET() const { return op1_et; }
+	ZAM_Type Op2_ET() const { return op2_et; }
 
 private:
 	ZAM_Type lhs_et;

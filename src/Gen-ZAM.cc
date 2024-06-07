@@ -1609,7 +1609,9 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
                                          const string& suffix, ZAM_InstClass zc)
 	{
 	if ( expr_types.empty() )
-		{ // No operand types to expand over.
+		{
+		// No operand types to expand over. This happens for
+		// some "non-uniform" operations.
 		ZAM_OpTemplate::InstantiateEval(oc_orig, suffix, zc);
 		return;
 		}
@@ -1722,13 +1724,24 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 
 	for ( auto& ei : eval_instances )
 		{
+		op_types.clear();
+
 		auto lhs_accessor = ei.LHSAccessor();
 		if ( HasExplicitResultType() )
+			{
+			op_types.push_back(ZAM_TYPE_NONE);
 			lhs_accessor = "";
+			}
+		else
+			op_types.push_back(ei.LHS_ET());
 
 		string lhs_ei = lhs;
 		if ( zc != ZIC_VEC )
 			lhs_ei += lhs_accessor;
+
+		op_types.push_back(ei.Op1_ET());
+		if ( Arity() > 1 )
+			op_types.push_back(ei.Op2_ET());
 
 		auto op1_ei = op1 + ei.Op1Accessor(zc == ZIC_VEC);
 		auto op2_ei = op2 + ei.Op2Accessor(zc == ZIC_VEC);
