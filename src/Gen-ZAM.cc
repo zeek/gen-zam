@@ -300,7 +300,7 @@ void ZAM_OpTemplate::Instantiate()
 					}
 			}
 
-		if ( ot_int_index >= 0 )
+		if ( ot_int_index >= 0 && op_types.empty() )
 			{ // expand the accessors to include this
 			for ( size_t i = 0; i < op_classes_vec[0].size(); ++i )
 				if ( i == ot_int_index )
@@ -336,11 +336,6 @@ void ZAM_OpTemplate::InstantiatePredicate()
 	auto orig_op_classes = op_classes;
 	bool no_classes = orig_op_classes[0] == ZAM_OC_NONE;
 
-	// All three forms take an additional final argument, the branch
-	// target.
-	if ( ! op_types.empty() )
-		op_types.push_back(ZAM_TYPE_INT);
-
 	// Assignment form.
 	op_classes.clear();
 	op_classes.push_back(ZAM_OC_VAR);
@@ -358,10 +353,16 @@ void ZAM_OpTemplate::InstantiatePredicate()
 
 	InstantiateOp(op_classes, false);
 
-	if ( ! op_types.empty() )
-		op_types.erase(op_types.begin());
-
 	// Conditional form - branch if not true.
+
+	if ( ! op_types.empty() )
+		{
+		// Remove 'V' at the beginning from the assignment form,
+		// and add a 'i' at the end for the branch.
+		op_types.erase(op_types.begin());
+		op_types.push_back(ZAM_TYPE_INT);
+		}
+
 	cname += "_COND";
 	op1_flavor = "OP1_READ";
 	if ( no_classes )
@@ -963,7 +964,12 @@ void ZAM_OpTemplate::StartDesc(const string& op_code, const string& oc_str)
 		{
 		string ots;
 		for ( auto ot : op_types )
-			ots += expr_name_types[ot];
+			{
+			if ( ot == ZAM_TYPE_DEFAULT )
+				ots += "X";
+			else
+				ots += expr_name_types[ot];
+			}
 
 		Emit("\"" + ots + "\", ");
 		}
@@ -1628,6 +1634,19 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 		return;
 		}
 
+	if ( zc == ZIC_VEC )
+		{
+		// Don't generate versions of these for constant operands
+		// as those don't exist.
+		if ( oc_orig.size() != Arity() + 1 )
+			Gripe("vector class/arity mismatch");
+
+		if ( oc_orig[1] == ZAM_OC_CONSTANT )
+			return;
+		if ( Arity() > 1 && oc_orig[2] == ZAM_OC_CONSTANT )
+			return;
+		}
+
 	auto oc = oc_orig;
 	if ( zc == ZIC_FIELD )
 		// Make room for the offset.
@@ -1744,6 +1763,8 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 			op_types.push_back(ZAM_TYPE_NONE);
 			lhs_accessor = "";
 			}
+		else if ( zc == ZIC_FIELD )
+			op_types.push_back(ZAM_TYPE_RECORD);
 		else
 			op_types.push_back(ei.LHS_ET());
 
@@ -1757,6 +1778,18 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 
 		if ( zc == ZIC_FIELD )
 			op_types.push_back(ZAM_TYPE_INT);
+
+		if ( zc == ZIC_VEC )
+			{
+			// Above isn't applicable, since we use helper
+			// functions.
+			op_types.clear();
+			op_types.push_back(ZAM_TYPE_VECTOR);
+			op_types.push_back(ZAM_TYPE_VECTOR);
+
+			if ( Arity() > 1 )
+				op_types.push_back(ZAM_TYPE_VECTOR);
+			}
 
 		auto op1_ei = op1 + ei.Op1Accessor(zc == ZIC_VEC);
 		auto op2_ei = op2 + ei.Op2Accessor(zc == ZIC_VEC);
