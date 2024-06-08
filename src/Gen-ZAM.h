@@ -873,6 +873,8 @@ protected:
 	void Parse(const string& attr, const string& line, const Words& words) override;
 
 private:
+	void ParseCall(const string& line, const Words& words);
+
 	// True if the internal operation corresponds to an indirect call,
 	// i.e., one through a variable rather than one directly specified.
 	bool is_indirect_call = false;

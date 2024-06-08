@@ -2159,25 +2159,28 @@ void ZAM_RelationalExprOpTemplate::BuildInstruction(const OCVec& oc,
 
 void ZAM_InternalOpTemplate::Parse(const string& attr, const string& line, const Words& words)
 	{
-	if ( attr != "num-call-args" )
+	if ( attr == "num-call-args" )
+		ParseCall(line, words);
+
+	else if ( attr == "indirect-call" || attr == "indirect-local-call" )
 		{
-		if ( attr == "indirect-call" || attr == "indirect-local-call" )
-			{
-			if ( words.size() != 1 )
-				g->Gripe("indirect-call takes one argument", line);
-			// Note, currently only works with a *subsequent*
-			// num-call-args, whose setting needs to be 'n'.
-			is_indirect_call = true;
+		if ( words.size() != 1 )
+			g->Gripe("indirect-call takes one argument", line);
 
-			if ( attr == "indirect-local-call" )
-				is_local_indirect_call = true;
-			}
-		else
-			ZAM_OpTemplate::Parse(attr, line, words);
+		// Note, currently only works with a *subsequent* num-call-args,
+		// whose setting needs to be 'n'.
+		is_indirect_call = true;
 
-		return;
+		if ( attr == "indirect-local-call" )
+			is_local_indirect_call = true;
 		}
 
+	else
+		ZAM_OpTemplate::Parse(attr, line, words);
+	}
+
+void ZAM_InternalOpTemplate::ParseCall(const string& line, const Words& words)
+	{
 	if ( words.size() != 2 )
 		g->Gripe("num-call-args takes one argument", line);
 
