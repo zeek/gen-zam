@@ -652,7 +652,7 @@ void ZAM_OpTemplate::InstantiateOp(const string& method, const OCVec& oc,
 	string suffix = "";
 
 	if ( zc == ZIC_FIELD )
-		suffix = "_field";
+		suffix = NoEval() ? "i" : "_field";
 	else if ( zc == ZIC_VEC )
 		suffix = "_vec";
 	else if ( zc == ZIC_COND )
@@ -663,7 +663,7 @@ void ZAM_OpTemplate::InstantiateOp(const string& method, const OCVec& oc,
 
 	if ( IsAssignOp() )
 		InstantiateAssignOp(oc, suffix);
-	else
+	else if ( zc != ZIC_FIELD )
 		{
 		InstantiateEval(oc, suffix, zc);
 
@@ -1505,7 +1505,10 @@ void ZAM_ExprOpTemplate::InstantiateV(const OCVec& ocs)
 	if ( IncludesFieldOp() )
 		{
 		EmitTo(VFieldDef);
-		Emit("case EXPR_" + cname + ":\treturn " + m + "_field(" + args + ", field);");
+
+		string suffix = NoEval() ? "i" : "_field";
+
+		Emit("case EXPR_" + cname + ":\treturn " + m + suffix + "(" + args + ", field);");
 		}
 	}
 
@@ -1646,35 +1649,37 @@ string EvalInstance::OpMarker() const
 void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
                                          const string& suffix, ZAM_InstClass zc)
 	{
-	if ( expr_types.empty() )
-		{
-		// No operand types to expand over. This happens for
-		// some "non-uniform" operations.
-		ZAM_OpTemplate::InstantiateEval(oc_orig, suffix, zc);
-		return;
-		}
+	auto oc = oc_orig;
 
 	if ( zc == ZIC_VEC )
 		{
 		// Don't generate versions of these for constant operands
 		// as those don't exist.
-		if ( oc_orig.size() != Arity() + 1 )
+		if ( oc.size() != Arity() + 1 )
 			Gripe("vector class/arity mismatch");
 
-		if ( oc_orig[1] == ZAM_OC_CONSTANT )
+		if ( oc[1] == ZAM_OC_CONSTANT )
 			return;
-		if ( Arity() > 1 && oc_orig[2] == ZAM_OC_CONSTANT )
+		if ( Arity() > 1 && oc[2] == ZAM_OC_CONSTANT )
 			return;
 		}
 
-	auto oc = oc_orig;
 	if ( zc == ZIC_FIELD )
 		// Make room for the offset.
 		oc.push_back(ZAM_OC_INT);
 	else if ( zc == ZIC_COND )
 		{
+		// Remove the assignment and add in the branch.
 		oc.erase(oc.begin());
 		oc.push_back(ZAM_OC_INT);
+		}
+
+	if ( expr_types.empty() )
+		{
+		// No operand types to expand over. This happens for
+		// some "non-uniform" operations.
+		ZAM_OpTemplate::InstantiateEval(oc, suffix, zc);
+		return;
 		}
 
 	auto oc_str = OpSuffix(oc);
