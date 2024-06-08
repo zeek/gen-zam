@@ -652,7 +652,7 @@ void ZAM_OpTemplate::InstantiateOp(const string& method, const OCVec& oc,
 	string suffix = "";
 
 	if ( zc == ZIC_FIELD )
-		suffix = NoEval() ? "i" : "_field";
+		suffix = NoEval() ? "" : "_field";
 	else if ( zc == ZIC_VEC )
 		suffix = "_vec";
 	else if ( zc == ZIC_COND )
@@ -663,7 +663,7 @@ void ZAM_OpTemplate::InstantiateOp(const string& method, const OCVec& oc,
 
 	if ( IsAssignOp() )
 		InstantiateAssignOp(oc, suffix);
-	else if ( zc != ZIC_FIELD )
+	else
 		{
 		InstantiateEval(oc, suffix, zc);
 
@@ -696,11 +696,15 @@ void ZAM_OpTemplate::InstantiateMethod(const string& m, const string& suffix,
 
 	auto decls = MethodDeclare(oc, zc);
 
+	auto msuffix = suffix;
+	if ( zc == ZIC_FIELD && NoEval() )
+		msuffix += "i";
+
 	EmitTo(MethodDecl);
-	Emit("const ZAMStmt " + m + suffix + "(" + decls + ");");
+	Emit("const ZAMStmt " + m + msuffix + "(" + decls + ");");
 
 	EmitTo(MethodDef);
-	Emit("const ZAMStmt ZAMCompiler::" + m + suffix + "(" + decls + ")");
+	Emit("const ZAMStmt ZAMCompiler::" + m + msuffix + "(" + decls + ")");
 	BeginBlock();
 
 	InstantiateMethodCore(oc, suffix, zc);
@@ -1504,10 +1508,8 @@ void ZAM_ExprOpTemplate::InstantiateV(const OCVec& ocs)
 
 	if ( IncludesFieldOp() )
 		{
-		EmitTo(VFieldDef);
-
 		string suffix = NoEval() ? "i" : "_field";
-
+		EmitTo(VFieldDef);
 		Emit("case EXPR_" + cname + ":\treturn " + m + suffix + "(" + args + ", field);");
 		}
 	}
