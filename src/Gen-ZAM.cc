@@ -933,7 +933,27 @@ void ZAM_OpTemplate::GenEval(EmitTarget et, const string& oc_str, const string& 
 	auto op_code = g->GenOpCode(this, "_" + oc_str + op_suffix, zc);
 
 	if ( et == Eval )
-		GenDesc(op_code, oc_str, eval);
+		{
+		auto oc_str_copy = oc_str;
+		if ( zc == ZIC_COND )
+			{
+			auto n = oc_str_copy.size();
+
+			if ( oc_str_copy[n-1] == 'V' )
+				oc_str_copy[n-1] = 'i';
+
+			else if ( oc_str_copy[n-1] == 'C' )
+				{
+				if ( oc_str_copy[n-2] != 'V' )
+					Gripe("bad operator class");
+
+				oc_str_copy[n-2] = 'C';
+				oc_str_copy[n-1] = 'i';
+				}
+			}
+
+		GenDesc(op_code, oc_str_copy, eval);
+		}
 
 	EmitTo(et);
 	Emit("case " + op_code + ":");
@@ -1650,7 +1670,12 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 	auto oc = oc_orig;
 	if ( zc == ZIC_FIELD )
 		// Make room for the offset.
-		oc.emplace_back(ZAM_OC_INT);
+		oc.push_back(ZAM_OC_INT);
+	else if ( zc == ZIC_COND )
+		{
+		oc.erase(oc.begin());
+		oc.push_back(ZAM_OC_INT);
+		}
 
 	auto oc_str = OpSuffix(oc);
 
@@ -1674,31 +1699,40 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 		{
 		lhs = "frame[z.v1]";
 
-		auto op1_offset = zc == ZIC_COND ? 1 : 2;
-		auto op2_offset = op1_offset + 1;
-		bool oc1_const = oc[1] == ZAM_OC_CONSTANT;
-		bool oc2_const = Arity() >= 2 && oc[2] == ZAM_OC_CONSTANT;
+		// First compute the offsets into oc for the operands.
+		auto op1_offset = zc == ZIC_COND ? 0 : 1;
+		bool oc1_const = oc[op1_offset] == ZAM_OC_CONSTANT;
+		bool oc2_const =
+			Arity() > 1 && oc[op1_offset + 1] == ZAM_OC_CONSTANT;
+
+		// Now the frame slots.
+		auto op1_slot = op1_offset + 1;
+		auto op2_slot = op1_slot + 1;
 
 		if ( oc1_const )
 			{
 			op1 = "z.c";
-			--op2_offset;
-			branch_target += "2";
+			--op2_slot;
+			if ( zc == ZIC_COND )
+				branch_target += "2";
 			}
 		else
 			{
-			op1 = "frame[z.v" + to_string(op1_offset) + "]";
+			op1 = "frame[z.v" + to_string(op1_slot) + "]";
 
-			if ( Arity() > 1 && oc[2] == ZAM_OC_VAR )
-				branch_target += "3";
-			else
-				branch_target += "2";
+			if ( zc == ZIC_COND )
+				{
+				if ( Arity() > 1 && ! oc2_const )
+					branch_target += "3";
+				else
+					branch_target += "2";
+				}
 			}
 
 		if ( oc2_const )
 			op2 = "z.c";
 		else
-			op2 = "frame[z.v" + to_string(op2_offset) + "]";
+			op2 = "frame[z.v" + to_string(op2_slot) + "]";
 
 		if ( zc == ZIC_FIELD )
 			{
@@ -1706,7 +1740,7 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 
 			auto f =
 				// The first slots are taken up by the
-			    // assignment slot and the operands ...
+				// assignment slot and the operands ...
 				Arity() + 1 +
 				// ... and slots are numbered starting at 1.
 				+1;
@@ -1765,7 +1799,7 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 			}
 		else if ( zc == ZIC_FIELD )
 			op_types.push_back(ZAM_TYPE_RECORD);
-		else
+		else if ( zc != ZIC_COND )
 			op_types.push_back(ei.LHS_ET());
 
 		string lhs_ei = lhs;
@@ -1779,7 +1813,10 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 		if ( zc == ZIC_FIELD )
 			op_types.push_back(ZAM_TYPE_INT);
 
-		if ( zc == ZIC_VEC )
+		else if ( zc == ZIC_COND )
+			op_types.push_back(ZAM_TYPE_INT);
+
+		else if ( zc == ZIC_VEC )
 			{
 			// Above isn't applicable, since we use helper
 			// functions.
@@ -1849,9 +1886,12 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 			eval = regex_replace(eval, regex("\\$\\$"), lhs_ei);
 
 		else if ( zc == ZIC_COND )
-			{ // Aesthetics: get rid of trailing newlines.
+			{
+			// Aesthetics: get rid of trailing newlines.
 			eval = regex_replace(eval, regex("\n"), "");
-			eval = "if ( ! (" + eval + ") ) " + "{ pc = " + branch_target + "; continue; }";
+
+			eval = "if ( ! (" + eval + ") ) " +
+			       "{ pc = " + branch_target + "; continue; }";
 			}
 
 		else if ( ! is_none && (ei.IsDefault() || IsConditionalOp()) )
