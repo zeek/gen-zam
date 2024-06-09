@@ -11,6 +11,7 @@
 
 #include <assert.h>
 #include <map>
+#include <set>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -48,6 +49,7 @@ enum ZAM_OperandClass
 
 	// Internal type used for branches.
 	ZAM_OC_BRANCH,
+	ZAM_OC_GLOBAL,
 
 	ZAM_OC_NONE, // instruction has no direct operands
 	};

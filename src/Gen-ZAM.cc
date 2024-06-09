@@ -112,6 +112,7 @@ unordered_map<ZAM_OperandClass, pair<const char*, const char*>> ArgsManager::oc_
 	{ZAM_OC_EVENT_HANDLER, {"EventHandler*", "h"}},
 	{ZAM_OC_INT, {"int", "i"}},
 	{ZAM_OC_BRANCH, {"int", "i"}},
+	{ZAM_OC_GLOBAL, {"int", "i"}},
 	{ZAM_OC_LIST, {"const ListExpr*", "l"}},
 	{ZAM_OC_RECORD_FIELD, {"const NameExpr*", "n"}},
 	{ZAM_OC_VAR, {"const NameExpr*", "n"}},
@@ -119,6 +120,10 @@ unordered_map<ZAM_OperandClass, pair<const char*, const char*>> ArgsManager::oc_
 	// The following gets special treatment.
 	{ZAM_OC_ASSIGN_FIELD, {"const NameExpr*", "n"}},
 };
+
+set<ZAM_OperandClass> raw_int_oc(
+	{ ZAM_OC_BRANCH, ZAM_OC_GLOBAL, ZAM_OC_INT }
+);
 
 ArgsManager::ArgsManager(const OCVec& oc_orig, ZAM_InstClass zc)
 	{
@@ -288,17 +293,17 @@ void ZAM_OpTemplate::Instantiate()
 
 	else
 		{
-		// If one of the "classes" includes a ZAM_OC_INT/ZAM_OC_BRANCH
+		// If one of the "classes" includes an raw integer type
 		// then build up an accessor list for those. Currently, we
 		// allow those to occur in only one position.
 		int ot_int_index = -1;
 		for ( auto& ocs : op_classes_vec )
 			{
 			for ( size_t i = 0; i < ocs.size(); ++i )
-				if ( ocs[i] == ZAM_OC_INT || ocs[i] == ZAM_OC_BRANCH )
+				if ( raw_int_oc.count(ocs[i]) > 0 )
 					{
 					if ( ot_int_index >= 0 && ot_int_index != i )
-						Gripe("multiple 'i' instances in \"classes\"");
+						Gripe("multiple 'i'/'b'/'g' instances in \"classes\"");
 					ot_int_index = i;
 					}
 			}
@@ -576,6 +581,9 @@ OCVec ZAM_OpTemplate::ParseClass(const string& spec) const
 			case 'b':
 				oc = ZAM_OC_BRANCH;
 				break;
+			case 'g':
+				oc = ZAM_OC_GLOBAL;
+				break;
 
 			case 'X':
 				oc = ZAM_OC_NONE;
@@ -635,6 +643,7 @@ unordered_map<ZAM_OperandClass, char> ZAM_OpTemplate::oc_to_char = {
 	{ZAM_OC_ASSIGN_FIELD, 'F'}, {ZAM_OC_INT, 'i'},          {ZAM_OC_LIST, 'L'},
 	{ZAM_OC_NONE, 'X'},         {ZAM_OC_RECORD_FIELD, 'R'}, {ZAM_OC_VAR, 'V'},
 	{ZAM_OC_BRANCH, 'b'},
+	{ZAM_OC_GLOBAL, 'g'},
 };
 
 void ZAM_OpTemplate::InstantiateOp(const OCVec& oc, bool do_vec)
@@ -827,7 +836,7 @@ string ZAM_OpTemplate::ExpandParams(const OCVec& oc, string eval, const vector<s
 			need_target = false;
 			}
 
-		else if ( oc0 == ZAM_OC_INT || oc0 == ZAM_OC_BRANCH )
+		else if ( raw_int_oc.count(oc0) > 0 )
 			need_target = false;
 		}
 
@@ -900,12 +909,15 @@ string ZAM_OpTemplate::ExpandParams(const OCVec& oc, string eval, const vector<s
 
 		case ZAM_OC_INT:
 		case ZAM_OC_BRANCH:
+		case ZAM_OC_GLOBAL:
 			op = "z.v" + to_string(++frame_slot);
 			int_seen = true;
 			needs_accessor = false;
 
 			if ( oc[i] == ZAM_OC_BRANCH )
 				op = "Branch(" + op + ")";
+			else if ( oc[i] == ZAM_OC_GLOBAL )
+				op = "Global(" + op + ")";
 			break;
 
 		case ZAM_OC_CONSTANT:
