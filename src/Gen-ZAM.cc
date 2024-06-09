@@ -671,7 +671,19 @@ void ZAM_OpTemplate::InstantiateOp(const string& orig_method, const OCVec& oc_or
 		}
 
 	else if ( zc == ZIC_VEC )
+		{
+		// Don't generate versions of these for constant operands
+		// as those don't exist.
+		if ( oc.size() != Arity() + 1 )
+			Gripe("vector class/arity mismatch");
+
+		if ( oc[1] == ZAM_OC_CONSTANT )
+			return;
+		if ( Arity() > 1 && oc[2] == ZAM_OC_CONSTANT )
+			return;
+
 		suffix = "_vec";
+		}
 
 	auto method = MethodName(oc);
 
@@ -1424,7 +1436,7 @@ void ZAM_ExprOpTemplate::Instantiate()
 		InstantiateV(op_classes);
 	}
 
-void ZAM_ExprOpTemplate::InstantiateC1(const OCVec& ocs, size_t arity, bool do_vec)
+void ZAM_ExprOpTemplate::InstantiateC1(const OCVec& ocs, size_t arity)
 	{
 	string args = "lhs, r1->AsConstExpr()";
 
@@ -1447,10 +1459,7 @@ void ZAM_ExprOpTemplate::InstantiateC1(const OCVec& ocs, size_t arity, bool do_v
 
 	EmitNoNL("case EXPR_" + cname + ":");
 
-	if ( do_vec )
-		DoVectorCase(m, args);
-	else
-		EmitUp("return " + m + "(" + args + ");");
+	EmitUp("return " + m + "(" + args + ");");
 
 	if ( IncludesFieldOp() )
 		{
@@ -1661,19 +1670,6 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
                                          const string& suffix, ZAM_InstClass zc)
 	{
 	auto oc = oc_orig;
-
-	if ( zc == ZIC_VEC )
-		{
-		// Don't generate versions of these for constant operands
-		// as those don't exist.
-		if ( oc.size() != Arity() + 1 )
-			Gripe("vector class/arity mismatch");
-
-		if ( oc[1] == ZAM_OC_CONSTANT )
-			return;
-		if ( Arity() > 1 && oc[2] == ZAM_OC_CONSTANT )
-			return;
-		}
 
 	if ( expr_types.empty() )
 		{
@@ -1950,7 +1946,7 @@ void ZAM_UnaryExprOpTemplate::Instantiate()
 	OCVec ocs = {ZAM_OC_VAR, ZAM_OC_CONSTANT};
 
 	if ( ! NoConst() )
-		InstantiateC1(ocs, 1, IncludesVectorOp());
+		InstantiateC1(ocs, 1);
 
 	ocs[1] = ZAM_OC_VAR;
 	InstantiateV(ocs);
@@ -2084,7 +2080,7 @@ void ZAM_BinaryExprOpTemplate::Instantiate()
 	InstantiateOp(ocs, false);
 
 	if ( ! IsInternalOp() )
-		InstantiateC1(ocs, 2, false);
+		InstantiateC1(ocs, 2);
 
 	ocs[1] = ZAM_OC_VAR;
 	ocs[2] = ZAM_OC_CONSTANT;

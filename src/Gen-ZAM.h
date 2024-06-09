@@ -281,6 +281,11 @@ public:
 	void SetIsPredicate() { is_predicate = true; }
 	bool IsPredicate() const { return is_predicate; }
 
+	// The number of operands the operation takes (not including its
+	// assignment target).  A value of 0 is used for operations that
+	// require special handling.
+	virtual int Arity() const { return 0; }
+
 protected:
 	// Does instantiation for predicate operations.
 	void InstantiatePredicate();
@@ -691,11 +696,6 @@ class ZAM_ExprOpTemplate : public ZAM_OpTemplate
 public:
 	ZAM_ExprOpTemplate(ZAMGen* _g, string _base_name);
 
-	// The number of operands the operation takes (not including its
-	// assignment target).  A value of 0 is used for expressions that
-	// require special handling.
-	virtual int Arity() const { return 0; }
-
 	int HasExplicitResultType() const { return explicit_res_type; }
 	void SetHasExplicitResultType() { explicit_res_type = true; }
 
@@ -730,7 +730,7 @@ protected:
 
 	// Instantiates versions of the operation that have a constant
 	// as the first, second, or third operand ...
-	void InstantiateC1(const OCVec& ocs, size_t arity, bool do_vec = false);
+	void InstantiateC1(const OCVec& ocs, size_t arity);
 	void InstantiateC2(const OCVec& ocs, size_t arity);
 	void InstantiateC3(const OCVec& ocs);
 
