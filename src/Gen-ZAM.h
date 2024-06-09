@@ -46,6 +46,9 @@ enum ZAM_OperandClass
 	ZAM_OC_AUX, // uses the instruction's "aux" field
 	ZAM_OC_LIST, // a list, managed via the "aux" field
 
+	// Internal type used for branches.
+	ZAM_OC_BRANCH,
+
 	ZAM_OC_NONE, // instruction has no direct operands
 	};
 

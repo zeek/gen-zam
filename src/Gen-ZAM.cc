@@ -111,6 +111,7 @@ unordered_map<ZAM_OperandClass, pair<const char*, const char*>> ArgsManager::oc_
 	{ZAM_OC_CONSTANT, {"const ConstExpr*", "c"}},
 	{ZAM_OC_EVENT_HANDLER, {"EventHandler*", "h"}},
 	{ZAM_OC_INT, {"int", "i"}},
+	{ZAM_OC_BRANCH, {"int", "i"}},
 	{ZAM_OC_LIST, {"const ListExpr*", "l"}},
 	{ZAM_OC_RECORD_FIELD, {"const NameExpr*", "n"}},
 	{ZAM_OC_VAR, {"const NameExpr*", "n"}},
@@ -121,7 +122,6 @@ unordered_map<ZAM_OperandClass, pair<const char*, const char*>> ArgsManager::oc_
 
 ArgsManager::ArgsManager(const OCVec& oc_orig, ZAM_InstClass zc)
 	{
-	// ### FIXME once we have ZAM_OC_BRANCH
 	auto oc = oc_orig;
 	if ( zc == ZIC_COND )
 		oc.pop_back();
@@ -288,14 +288,14 @@ void ZAM_OpTemplate::Instantiate()
 
 	else
 		{
-		// If one of the "classes" includes a ZAM_OC_INT then build
-		// up an accessor list for those. Currently, we allow those
-		// to occur in only one position.
+		// If one of the "classes" includes a ZAM_OC_INT/ZAM_OC_BRANCH
+		// then build up an accessor list for those. Currently, we
+		// allow those to occur in only one position.
 		int ot_int_index = -1;
 		for ( auto& ocs : op_classes_vec )
 			{
 			for ( size_t i = 0; i < ocs.size(); ++i )
-				if ( ocs[i] == ZAM_OC_INT )
+				if ( ocs[i] == ZAM_OC_INT || ocs[i] == ZAM_OC_BRANCH )
 					{
 					if ( ot_int_index >= 0 && ot_int_index != i )
 						Gripe("multiple 'i' instances in \"classes\"");
@@ -373,10 +373,10 @@ void ZAM_OpTemplate::InstantiatePredicate()
 	else
 		op_classes = orig_op_classes;
 
-	op_classes.push_back(ZAM_OC_INT);
+	op_classes.push_back(ZAM_OC_BRANCH);
 
 	auto branch_pos = to_string(op_classes.size());
-	auto suffix = " )\n\t\tBRANCH($" + branch_pos + ")";
+	auto suffix = " )\n\t\t$" + branch_pos;
 	eval = "if ( ! (" + orig_eval + ")" + suffix;
 	InstantiateOp(op_classes, false);
 
@@ -573,6 +573,9 @@ OCVec ZAM_OpTemplate::ParseClass(const string& spec) const
 			case 'i':
 				oc = ZAM_OC_INT;
 				break;
+			case 'b':
+				oc = ZAM_OC_BRANCH;
+				break;
 
 			case 'X':
 				oc = ZAM_OC_NONE;
@@ -631,6 +634,7 @@ unordered_map<ZAM_OperandClass, char> ZAM_OpTemplate::oc_to_char = {
 	{ZAM_OC_AUX, 'O'},          {ZAM_OC_CONSTANT, 'C'},     {ZAM_OC_EVENT_HANDLER, 'H'},
 	{ZAM_OC_ASSIGN_FIELD, 'F'}, {ZAM_OC_INT, 'i'},          {ZAM_OC_LIST, 'L'},
 	{ZAM_OC_NONE, 'X'},         {ZAM_OC_RECORD_FIELD, 'R'}, {ZAM_OC_VAR, 'V'},
+	{ZAM_OC_BRANCH, 'b'},
 };
 
 void ZAM_OpTemplate::InstantiateOp(const OCVec& oc, bool do_vec)
@@ -666,7 +670,7 @@ void ZAM_OpTemplate::InstantiateOp(const string& orig_method, const OCVec& oc_or
 		{
 		// Remove the assignment and add in the branch.
 		oc.erase(oc.begin());
-		oc.push_back(ZAM_OC_INT);
+		oc.push_back(ZAM_OC_BRANCH);
 		suffix = "_cond";
 		}
 
@@ -823,7 +827,7 @@ string ZAM_OpTemplate::ExpandParams(const OCVec& oc, string eval, const vector<s
 			need_target = false;
 			}
 
-		else if ( oc0 == ZAM_OC_INT )
+		else if ( oc0 == ZAM_OC_INT || oc0 == ZAM_OC_BRANCH )
 			need_target = false;
 		}
 
@@ -895,9 +899,13 @@ string ZAM_OpTemplate::ExpandParams(const OCVec& oc, string eval, const vector<s
 			break;
 
 		case ZAM_OC_INT:
+		case ZAM_OC_BRANCH:
 			op = "z.v" + to_string(++frame_slot);
 			int_seen = true;
 			needs_accessor = false;
+
+			if ( oc[i] == ZAM_OC_BRANCH )
+				op = "Branch(" + op + ")";
 			break;
 
 		case ZAM_OC_CONSTANT:
@@ -2119,11 +2127,11 @@ void ZAM_RelationalExprOpTemplate::Instantiate()
 	Emit("case EXPR_" + cname + ":");
 	IndentUp();
 	Emit("if ( n1 && n2 )");
-	EmitUp("return " + cname + "VVi_cond(n1, n2);");
+	EmitUp("return " + cname + "VVb_cond(n1, n2);");
 	Emit("else if ( n1 )");
-	EmitUp("return " + cname + "VCi_cond(n1, c);");
+	EmitUp("return " + cname + "VCb_cond(n1, c);");
 	Emit("else");
-	EmitUp("return " + cname + "CVi_cond(c, n2);");
+	EmitUp("return " + cname + "CVb_cond(c, n2);");
 	IndentDown();
 	NL();
 	}
