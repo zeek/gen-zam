@@ -113,6 +113,8 @@ unordered_map<ZAM_OperandClass, pair<const char*, const char*>> ArgsManager::oc_
 	{ZAM_OC_INT, {"int", "i"}},
 	{ZAM_OC_BRANCH, {"int", "i"}},
 	{ZAM_OC_GLOBAL, {"int", "i"}},
+	{ZAM_OC_STEP_ITER, {"int", "i"}},
+	{ZAM_OC_TBL_ITER, {"int", "i"}},
 	{ZAM_OC_LIST, {"const ListExpr*", "l"}},
 	{ZAM_OC_RECORD_FIELD, {"const NameExpr*", "n"}},
 	{ZAM_OC_VAR, {"const NameExpr*", "n"}},
@@ -122,7 +124,7 @@ unordered_map<ZAM_OperandClass, pair<const char*, const char*>> ArgsManager::oc_
 };
 
 set<ZAM_OperandClass> raw_int_oc(
-	{ ZAM_OC_BRANCH, ZAM_OC_GLOBAL, ZAM_OC_INT }
+	{ ZAM_OC_BRANCH, ZAM_OC_GLOBAL, ZAM_OC_INT, ZAM_OC_STEP_ITER, ZAM_OC_TBL_ITER }
 );
 
 ArgsManager::ArgsManager(const OCVec& oc_orig, ZAM_InstClass zc)
@@ -581,8 +583,14 @@ OCVec ZAM_OpTemplate::ParseClass(const string& spec) const
 			case 'b':
 				oc = ZAM_OC_BRANCH;
 				break;
+			case 'f': // 'f' = "for" loop
+				oc = ZAM_OC_TBL_ITER;
+				break;
 			case 'g':
 				oc = ZAM_OC_GLOBAL;
+				break;
+			case 's':
+				oc = ZAM_OC_STEP_ITER;
 				break;
 
 			case 'X':
@@ -644,6 +652,8 @@ unordered_map<ZAM_OperandClass, char> ZAM_OpTemplate::oc_to_char = {
 	{ZAM_OC_NONE, 'X'},         {ZAM_OC_RECORD_FIELD, 'R'}, {ZAM_OC_VAR, 'V'},
 	{ZAM_OC_BRANCH, 'b'},
 	{ZAM_OC_GLOBAL, 'g'},
+	{ZAM_OC_STEP_ITER, 's'},
+	{ZAM_OC_TBL_ITER, 'f'},
 };
 
 void ZAM_OpTemplate::InstantiateOp(const OCVec& oc, bool do_vec)
@@ -910,6 +920,8 @@ string ZAM_OpTemplate::ExpandParams(const OCVec& oc, string eval, const vector<s
 		case ZAM_OC_INT:
 		case ZAM_OC_BRANCH:
 		case ZAM_OC_GLOBAL:
+		case ZAM_OC_STEP_ITER:
+		case ZAM_OC_TBL_ITER:
 			op = "z.v" + to_string(++frame_slot);
 			int_seen = true;
 			needs_accessor = false;
@@ -918,6 +930,10 @@ string ZAM_OpTemplate::ExpandParams(const OCVec& oc, string eval, const vector<s
 				op = "Branch(" + op + ")";
 			else if ( oc[i] == ZAM_OC_GLOBAL )
 				op = "Global(" + op + ")";
+			else if ( oc[i] == ZAM_OC_STEP_ITER )
+				op = "StepIter(" + op + ")";
+			else if ( oc[i] == ZAM_OC_TBL_ITER )
+				op = "TableIter(" + op + ")";
 			break;
 
 		case ZAM_OC_CONSTANT:

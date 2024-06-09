@@ -50,6 +50,8 @@ enum ZAM_OperandClass
 	// Internal type used for branches.
 	ZAM_OC_BRANCH,
 	ZAM_OC_GLOBAL,
+	ZAM_OC_STEP_ITER,
+	ZAM_OC_TBL_ITER,
 
 	ZAM_OC_NONE, // instruction has no direct operands
 	};
