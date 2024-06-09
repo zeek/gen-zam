@@ -2145,7 +2145,7 @@ void ZAM_RelationalExprOpTemplate::BuildInstruction(const OCVec& oc,
 		}
 	else
 		{
-		if ( oc[0] == ZAM_OC_CONSTANT )
+		if ( oc[1] == ZAM_OC_CONSTANT )
 			op1 = "c";
 		else
 			op1 = "n2";
