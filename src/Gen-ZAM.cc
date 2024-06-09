@@ -119,8 +119,13 @@ unordered_map<ZAM_OperandClass, pair<const char*, const char*>> ArgsManager::oc_
 	{ZAM_OC_ASSIGN_FIELD, {"const NameExpr*", "n"}},
 };
 
-ArgsManager::ArgsManager(const OCVec& oc, ZAM_InstClass zc)
+ArgsManager::ArgsManager(const OCVec& oc_orig, ZAM_InstClass zc)
 	{
+	// ### FIXME once we have ZAM_OC_BRANCH
+	auto oc = oc_orig;
+	if ( zc == ZIC_COND )
+		oc.pop_back();
+
 	int n = 0;
 	bool add_field = false;
 
@@ -132,9 +137,7 @@ ArgsManager::ArgsManager(const OCVec& oc, ZAM_InstClass zc)
 			break;
 			}
 
-		if ( n++ == 0 && zc == ZIC_COND )
-			// Skip the conditional's nominal assignment slot.
-			continue;
+		++n;
 
 		// Start off the argument info using the usual case
 		// of (1) same method parameter name as GenInst argument,
@@ -646,17 +649,31 @@ void ZAM_OpTemplate::InstantiateOp(const OCVec& oc, bool do_vec)
 		InstantiateOp(method, oc, ZIC_COND);
 	}
 
-void ZAM_OpTemplate::InstantiateOp(const string& method, const OCVec& oc,
+void ZAM_OpTemplate::InstantiateOp(const string& orig_method, const OCVec& oc_orig,
                                    ZAM_InstClass zc)
 	{
+	auto oc = oc_orig;
 	string suffix = "";
 
 	if ( zc == ZIC_FIELD )
+		{
+		// Make room for the offset.
+		oc.push_back(ZAM_OC_INT);
 		suffix = NoEval() ? "" : "_field";
+		}
+
+	else if ( zc == ZIC_COND )
+		{
+		// Remove the assignment and add in the branch.
+		oc.erase(oc.begin());
+		oc.push_back(ZAM_OC_INT);
+		suffix = "_cond";
+		}
+
 	else if ( zc == ZIC_VEC )
 		suffix = "_vec";
-	else if ( zc == ZIC_COND )
-		suffix = "_cond";
+
+	auto method = MethodName(oc);
 
 	if ( ! IsInternalOp() )
 		InstantiateMethod(method, suffix, oc, zc);
@@ -684,27 +701,18 @@ void ZAM_OpTemplate::GenAssignmentlessVersion(const string& op)
 	}
 
 void ZAM_OpTemplate::InstantiateMethod(const string& m, const string& suffix,
-                                       const OCVec& oc_orig, ZAM_InstClass zc)
+                                       const OCVec& oc, ZAM_InstClass zc)
 	{
 	if ( IsInternalOp() )
 		return;
 
-	auto oc = oc_orig;
-	if ( zc == ZIC_FIELD )
-		// Need to make room for the field offset.
-		oc.emplace_back(ZAM_OC_INT);
-
 	auto decls = MethodDeclare(oc, zc);
 
-	auto msuffix = suffix;
-	if ( zc == ZIC_FIELD && NoEval() )
-		msuffix += "i";
-
 	EmitTo(MethodDecl);
-	Emit("const ZAMStmt " + m + msuffix + "(" + decls + ");");
+	Emit("const ZAMStmt " + m + suffix + "(" + decls + ");");
 
 	EmitTo(MethodDef);
-	Emit("const ZAMStmt ZAMCompiler::" + m + msuffix + "(" + decls + ")");
+	Emit("const ZAMStmt ZAMCompiler::" + m + suffix + "(" + decls + ")");
 	BeginBlock();
 
 	InstantiateMethodCore(oc, suffix, zc);
@@ -1447,7 +1455,7 @@ void ZAM_ExprOpTemplate::InstantiateC1(const OCVec& ocs, size_t arity, bool do_v
 	if ( IncludesFieldOp() )
 		{
 		EmitTo(C1FieldDef);
-		Emit("case EXPR_" + cname + ":\treturn " + m + "_field(" + args + ", field);");
+		Emit("case EXPR_" + cname + ":\treturn " + m + "i_field(" + args + ", field);");
 		}
 	}
 
@@ -1467,7 +1475,7 @@ void ZAM_ExprOpTemplate::InstantiateC2(const OCVec& ocs, size_t arity)
 	if ( IncludesFieldOp() )
 		{
 		EmitTo(C2FieldDef);
-		Emit("case EXPR_" + cname + ":\treturn " + m + "_field(" + args + ", field);");
+		Emit("case EXPR_" + cname + ":\treturn " + m + "i_field(" + args + ", field);");
 		}
 	}
 
@@ -1508,9 +1516,9 @@ void ZAM_ExprOpTemplate::InstantiateV(const OCVec& ocs)
 
 	if ( IncludesFieldOp() )
 		{
-		string suffix = NoEval() ? "i" : "_field";
+		string suffix = NoEval() ? "" : "_field";
 		EmitTo(VFieldDef);
-		Emit("case EXPR_" + cname + ":\treturn " + m + suffix + "(" + args + ", field);");
+		Emit("case EXPR_" + cname + ":\treturn " + m + "i" + suffix + "(" + args + ", field);");
 		}
 	}
 
@@ -1533,9 +1541,10 @@ void ZAM_ExprOpTemplate::BuildInstructionCore(const string& params, const string
 
 	int ncases = 0;
 
-	for ( auto& [et1, et2_map] : eval_mixed_set )
-		for ( auto& [et2, eval] : et2_map )
-			GenMethodTest(et1, et2, params, suffix, ++ncases > 1, zc);
+	if ( zc != ZIC_VEC )
+		for ( auto& [et1, et2_map] : eval_mixed_set )
+			for ( auto& [et2, eval] : et2_map )
+				GenMethodTest(et1, et2, params, suffix, ++ncases > 1, zc);
 
 	bool do_default = false;
 
@@ -1664,16 +1673,6 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 			return;
 		if ( Arity() > 1 && oc[2] == ZAM_OC_CONSTANT )
 			return;
-		}
-
-	if ( zc == ZIC_FIELD )
-		// Make room for the offset.
-		oc.push_back(ZAM_OC_INT);
-	else if ( zc == ZIC_COND )
-		{
-		// Remove the assignment and add in the branch.
-		oc.erase(oc.begin());
-		oc.push_back(ZAM_OC_INT);
 		}
 
 	if ( expr_types.empty() )
@@ -2124,11 +2123,11 @@ void ZAM_RelationalExprOpTemplate::Instantiate()
 	Emit("case EXPR_" + cname + ":");
 	IndentUp();
 	Emit("if ( n1 && n2 )");
-	EmitUp("return " + cname + "VVV_cond(n1, n2);");
+	EmitUp("return " + cname + "VVi_cond(n1, n2);");
 	Emit("else if ( n1 )");
-	EmitUp("return " + cname + "VVC_cond(n1, c);");
+	EmitUp("return " + cname + "VCi_cond(n1, c);");
 	Emit("else");
-	EmitUp("return " + cname + "VCV_cond(c, n2);");
+	EmitUp("return " + cname + "CVi_cond(c, n2);");
 	IndentDown();
 	NL();
 	}
@@ -2141,16 +2140,16 @@ void ZAM_RelationalExprOpTemplate::BuildInstruction(const OCVec& oc,
 
 	if ( zc == ZIC_COND )
 		{
-		if ( oc[1] == ZAM_OC_CONSTANT )
+		if ( oc[0] == ZAM_OC_CONSTANT )
 			op1 = "c";
-		else if ( oc[2] == ZAM_OC_CONSTANT )
+		else if ( oc[1] == ZAM_OC_CONSTANT )
 			op1 = "n";
 		else
 			op1 = "n1";
 		}
 	else
 		{
-		if ( oc[1] == ZAM_OC_CONSTANT )
+		if ( oc[0] == ZAM_OC_CONSTANT )
 			op1 = "c";
 		else
 			op1 = "n2";
@@ -2215,14 +2214,7 @@ void ZAM_InternalOpTemplate::ParseCall(const string& line, const Words& words)
 				func = "func";
 
 				if ( is_local_indirect_call )
-					{
-#if 0
-					eval += "auto sel = z.v" +
-						to_string(arg_slot) + ";\n";
-					eval += "auto func = frame[sel].AsFunc();\n";
-#endif
 					eval += "auto func = $1.AsFunc();\n";
-					}
 				else
 					{
 					eval += "auto func_v = aux->id_val->GetVal();\n";
