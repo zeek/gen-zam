@@ -718,9 +718,13 @@ public:
 	bool IncludesFieldOp() const override { return includes_field_op; }
 	void SetIncludesFieldOp() { includes_field_op = true; }
 
-	bool HasPreEval() const { return ! pre_eval.empty(); }
-	void SetPreEval(string pe) { pre_eval = SkipWS(pe); }
-	const string& GetPreEval() const { return pre_eval; }
+	bool HasPreCheck() const { return ! pre_check.empty(); }
+	void SetPreCheck(string pe) { pre_check = SkipWS(pe); }
+	const string& GetPreCheck() const { return pre_check; }
+
+	bool HasPreCheckAction() const { return ! pre_check_action.empty(); }
+	void SetPreCheckAction(string pe) { pre_check_action = SkipWS(pe); }
+	const string& GetPreCheckAction() const { return pre_check_action; }
 
 protected:
 	// Returns a regular expression used to access the value of the
@@ -777,8 +781,12 @@ private:
 	// offset into the record to get to the field).
 	bool includes_field_op = false;
 
-	// If non-zero, code to generate prior to evaluating the expression.
-	string pre_eval;
+	// If non-empty, a check to conduct before evaluating the expression ...
+	string pre_check;
+
+	// ... and the action to take if the check is true, *instead* of
+	// evaluating the expression.
+	string pre_check_action;
 
 	// If true, then the evaluations will take care of ensuring
 	// proper result types when assigning to $$.

@@ -1423,15 +1423,28 @@ void ZAM_ExprOpTemplate::Parse(const string& attr, const string& line, const Wor
 		AddEvalSet(et1, et2, eval);
 		}
 
-	else if ( attr == "eval-pre" )
+	else if ( attr == "precheck" )
 		{
 		if ( words.size() < 2 )
-			g->Gripe("eval-pre needs evaluation", line);
+			g->Gripe("precheck needs evaluation", line);
 
 		auto eval = g->SkipWords(line, 1);
 		eval += GatherEval();
+		eval.pop_back();
 
-		SetPreEval(eval);
+		SetPreCheck(eval);
+		}
+
+	else if ( attr == "precheck-action" )
+		{
+		if ( words.size() < 2 )
+			g->Gripe("precheck-action needs evaluation", line);
+
+		auto eval = g->SkipWords(line, 1);
+		eval += GatherEval();
+		eval.pop_back();
+
+		SetPreCheckAction(eval);
 		}
 
 	else if ( attr == "explicit-result-type" )
@@ -1705,6 +1718,10 @@ string EvalInstance::OpMarker() const
 void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
                                          const string& suffix, ZAM_InstClass zc)
 	{
+	if ( (HasPreCheck() || HasPreCheckAction()) &&
+	     (! HasPreCheck() || ! HasPreCheckAction()) )
+		Gripe("precheck and precheck-action must be used together");
+
 	auto oc = oc_orig;
 
 	if ( expr_types.empty() )
@@ -1916,7 +1933,15 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 		eval = regex_replace(eval, regex("\\$1"), op1_ei);
 		eval = regex_replace(eval, regex("\\$2"), op2_ei);
 
-		string pre = GetPreEval();
+		string pre, post;
+
+		if ( HasPreCheck() )
+			{
+			pre = "if ( " + GetPreCheck() + ")\n\t{\n\t" +
+				GetPreCheckAction() + "\n\t}\n\telse\n\t{\n\t";
+			post = "\n\t}";
+			}
+
 		pre = regex_replace(pre, regex("\\$1"), op1_ei);
 		pre = regex_replace(pre, regex("\\$2"), op2_ei);
 
@@ -1940,7 +1965,7 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 			eval = regex_replace(eval, regex(";*\n"), ";\n");
 			}
 
-		eval = pre + eval;
+		eval = pre + eval + post;
 
 		auto full_suffix = suffix + ei.OpMarker();
 
