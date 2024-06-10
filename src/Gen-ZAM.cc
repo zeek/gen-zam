@@ -928,8 +928,10 @@ string ZAM_OpTemplate::ExpandParams(const OCVec& oc, string eval, const vector<s
 
 			if ( oc[i] == ZAM_OC_BRANCH )
 				op = "Branch(" + op + ")";
+#if 0
 			else if ( oc[i] == ZAM_OC_GLOBAL )
 				op = "Global(" + op + ")";
+#endif
 			else if ( oc[i] == ZAM_OC_STEP_ITER )
 				op = "StepIter(" + op + ")";
 			else if ( oc[i] == ZAM_OC_TBL_ITER )
