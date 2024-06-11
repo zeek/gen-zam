@@ -81,26 +81,16 @@ const TypeInfo& find_type_info(ZAM_Type zt)
 
 // Given a ZAM_Type, return its ZVal accessor.  Takes into account
 // some naming inconsistencies between ZVal's and Val's.
-string find_type_accessor(ZAM_Type zt)
+string find_type_accessor(ZAM_Type zt, bool is_lhs)
 	{
-	switch ( zt )
-		{
-		case ZAM_TYPE_NONE:
-			return "";
+	if ( zt == ZAM_TYPE_NONE )
+		return "";
 
-		case ZAM_TYPE_UINT:
-			return "uint_val";
+	string acc = string("As") + find_type_info(zt).accessor;
+	if ( is_lhs )
+		acc += "Ref";
 
-		case ZAM_TYPE_PATTERN:
-			return "re_val";
-
-		default:
-			{
-			string acc = find_type_info(zt).accessor;
-			transform(acc.begin(), acc.end(), acc.begin(), ::tolower);
-			return acc + "_val";
-			}
-		}
+	return acc + "()";
 	}
 
 // Maps ZAM operand types to pairs of (1) the C++ name used to declare
@@ -294,34 +284,8 @@ void ZAM_OpTemplate::Instantiate()
 		InstantiateOp(OperandClasses(), IncludesVectorOp());
 
 	else
-		{
-		// If one of the "classes" includes an raw integer type
-		// then build up an accessor list for those. Currently, we
-		// allow those to occur in only one position.
-		int ot_int_index = -1;
-		for ( auto& ocs : op_classes_vec )
-			{
-			for ( size_t i = 0; i < ocs.size(); ++i )
-				if ( raw_int_oc.count(ocs[i]) > 0 )
-					{
-					if ( ot_int_index >= 0 && ot_int_index != i )
-						Gripe("multiple 'i'/'b'/'g' instances in \"classes\"");
-					ot_int_index = i;
-					}
-			}
-
-		if ( ot_int_index >= 0 && op_types.empty() )
-			{ // expand the accessors to include this
-			for ( size_t i = 0; i < op_classes_vec[0].size(); ++i )
-				if ( i == ot_int_index )
-					accessors.push_back("int_val");
-				else
-					accessors.push_back("");
-			}
-
 		for ( auto& ocs : op_classes_vec )
 			InstantiateOp(ocs, IncludesVectorOp());
-		}
 	}
 
 void ZAM_OpTemplate::InstantiatePredicate()
@@ -357,7 +321,7 @@ void ZAM_OpTemplate::InstantiatePredicate()
 	if ( ! op_types.empty() )
 		op_types.insert(op_types.begin(), ZAM_TYPE_INT);
 	else
-		target_accessor = ".int_val";
+		target_accessor = ".AsIntRef()";
 
 	eval = "$$" + target_accessor + " = " + orig_eval + ";";
 
@@ -955,7 +919,7 @@ string ZAM_OpTemplate::ExpandParams(const OCVec& oc, string eval, const vector<s
 			if ( ! accessors.empty() && ! accessors[i].empty() )
 				op += "." + accessors[i];
 			else if ( ! op_types.empty() && op_types[i] != ZAM_TYPE_NONE )
-				op += "." + find_type_accessor(op_types[i]);
+				op += "." + find_type_accessor(op_types[i], have_target && i == 0);
 			}
 
 		else if ( ! op_types.empty() && oc[i] == ZAM_OC_INT )
@@ -1692,7 +1656,7 @@ string EvalInstance::LHSAccessor(bool is_ptr) const
 		return "";
 
 	string deref = is_ptr ? "->" : ".";
-	string acc = find_type_accessor(lhs_et);
+	string acc = find_type_accessor(lhs_et, true);
 
 	return deref + acc;
 	}
