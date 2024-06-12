@@ -1920,7 +1920,7 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig,
 			eval = regex_replace(eval, regex("\n"), "");
 
 			eval = "if ( ! (" + eval + ") ) " +
-			       "{ pc = " + branch_target + "; continue; }";
+			       "Branch(" + branch_target + ")";
 			}
 
 		else if ( ! is_none && (ei.IsDefault() || IsConditionalOp()) )
