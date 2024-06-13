@@ -771,7 +771,7 @@ void ZAM_OpTemplate::InstantiateMethodCore(const OCVec& oc, const string& suffix
 
 	auto& tp2 = GetType2Param();
 	if ( tp2 )
-		Emit("z.t2 = " + args.NthParam(*tp2) + "->GetType();");
+		Emit("z.SetType2(" + args.NthParam(*tp2) + "->GetType());");
 	}
 
 void ZAM_OpTemplate::BuildInstruction(const OCVec& oc, const string& params,
@@ -2016,14 +2016,14 @@ void ZAM_UnaryExprOpTemplate::BuildInstruction(const OCVec& oc,
 	if ( IsAssignOp() && IsFieldOp() )
 		// These can't take the type from the LHS variable, since
 		// that's the enclosing record and not the field within it.
-		Emit("z.t = t;");
+		Emit("z.SetType(t);");
 
 	else if ( zc == ZIC_VEC )
 		{
 		if ( constant_op )
-			Emit("z.t = n->GetType();");
+			Emit("z.SetType(n->GetType());");
 		else
-			Emit("z.t = n1->GetType();");
+			Emit("z.SetType(n1->GetType());");
 		}
 	}
 
@@ -2134,7 +2134,7 @@ void ZAM_BinaryExprOpTemplate::BuildInstruction(const OCVec& oc,
 	BuildInstructionCore(params, suffix, zc);
 
 	if ( zc == ZIC_VEC )
-		Emit("z.t = n1->GetType();");
+		Emit("z.SetType(n1->GetType());");
 	}
 
 void ZAM_RelationalExprOpTemplate::Instantiate()
@@ -2183,7 +2183,7 @@ void ZAM_RelationalExprOpTemplate::BuildInstruction(const OCVec& oc,
 	BuildInstructionCore(params, suffix, zc);
 
 	if ( zc == ZIC_VEC )
-		Emit("z.t = n1->GetType();");
+		Emit("z.SetType(n1->GetType());");
 	}
 
 void ZAM_InternalOpTemplate::Parse(const string& attr, const string& line, const Words& words)
