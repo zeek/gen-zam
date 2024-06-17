@@ -353,7 +353,7 @@ void ZAM_OpTemplate::InstantiatePredicate()
 
 	// Now the form that branches if true.
 	cname = "NOT_" + cname;
-	eval = "if ( " + orig_eval + suffix;
+	eval = "if ( (" + orig_eval + ")" + suffix;
 	InstantiateOp(op_classes, false);
 	}
 
