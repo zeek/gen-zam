@@ -1130,7 +1130,7 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval,
 		auto rhs_offset = lhs_offset - 1;
 
 		Emit("auto v = " + rhs + ".AsRecord()->RawOptField(z.v" + to_string(rhs_offset) +
-		     "); // note, RHS field before LHS field");
+		     "); // note, RHS field before LHS field\n");
 
 		Emit("if ( ! v )");
 		BeginBlock();
@@ -1140,7 +1140,7 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval,
 
 		auto slot = "z.v" + to_string(lhs_offset);
 		Emit("auto r = frame[z.v1].AsRecord();");
-		Emit("auto& f = r->RawField(" + slot + "); // note, LHS field after RHS field");
+		Emit("auto& f = r->RawField(" + slot + "); // note, LHS field after RHS field\n");
 
 		if ( is_managed )
 			{
