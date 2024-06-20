@@ -1129,7 +1129,7 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval,
 		auto lhs_offset = constant_op ? 3 : 4;
 		auto rhs_offset = lhs_offset - 1;
 
-		Emit("auto v = " + rhs + ".AsRecord()->RawOptField(z.v" + to_string(rhs_offset) +
+		Emit("auto v = DirectField(" + rhs + ".AsRecord(), z.v" + to_string(rhs_offset) +
 		     "); // note, RHS field before LHS field\n");
 
 		Emit("if ( ! v )");
