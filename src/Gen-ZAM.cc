@@ -1135,9 +1135,10 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval,
 		Emit("if ( ! v )");
 		BeginBlock();
 		Emit("ZAM_run_time_error(Z_LOC, \"field value missing\");");
-		Emit("break;");
 		EndBlock();
 
+		Emit("else");
+		BeginBlock();
 		auto slot = "z.v" + to_string(lhs_offset);
 		Emit("auto r = frame[z.v1].AsRecord();");
 		Emit("auto& f = r->RawField(" + slot + "); // note, LHS field after RHS field\n");
@@ -1149,6 +1150,11 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval,
 			}
 
 		Emit("f = *v;");
+
+		if ( lhs_field )
+			Emit("r->Modified();");
+
+		EndBlock();
 		}
 
 	else
@@ -1167,6 +1173,7 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval,
 				Emit("zeek::Unref(f.ManagedVal());");
 
 			Emit("f = " + rhs + ";");
+			Emit("r->Modified();");
 			}
 
 		else
@@ -1177,9 +1184,6 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval,
 			Emit("frame[z.v1] = ZVal(" + rhs + acc + ");");
 			}
 		}
-
-	if ( lhs_field )
-		Emit("r->Modified();");
 	}
 
 void ZAM_OpTemplate::GenAssignOpValCore(const OCVec& oc, const string& orig_eval, const string& accessor, bool is_managed)
