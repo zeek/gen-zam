@@ -223,15 +223,13 @@ private:
 
 	// For a single argument/parameter, tracks its declaration name,
 	// C++ type, and the name to use when providing it as a parameter.
-	// These last two names are potentially distinct when we're
-	// assigning to record field (which is tracked by the is_field
-	// member variable), hence the need to track both.
+	// We have two names because in some contexts record fields have
+	// different names in declarations vs. in parameter lists.
 	struct Arg
 		{
 		string decl_name;
 		string decl_type;
 		string param_name;
-		bool is_field;
 		};
 
 	// All of the argument/parameters associated with the collection

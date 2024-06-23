@@ -140,12 +140,10 @@ ArgsManager::ArgsManager(const OCVec& oc_orig, ZAM_InstClass zc)
 		// of (1) same method parameter name as GenInst argument,
 		// and (2) not requiring a record field.
 		auto& arg_i = oc_to_args[ot_i];
-		Arg arg = {arg_i.second, arg_i.first, arg_i.second, false};
+		Arg arg = {arg_i.second, arg_i.first, arg_i.second};
 
 		if ( ot_i == ZAM_OC_ASSIGN_FIELD )
 			{
-			arg.is_field = true;
-
 			if ( n == 1 )
 				{ // special-case the parameter
 				arg.decl_name = "flhs";
@@ -198,9 +196,6 @@ void ArgsManager::Differentiate()
 
 	// Finally, build the full versions of the declaration and parameters.
 
-	// Tracks how many record fields we're dealing with.
-	int num_fields = 0;
-
 	for ( auto& arg : args )
 		{
 		if ( ! full_decl.empty() )
@@ -213,20 +208,6 @@ void ArgsManager::Differentiate()
 
 		full_params += arg.param_name;
 		params.push_back(arg.param_name);
-
-		if ( arg.is_field )
-			++num_fields;
-		}
-
-	assert(num_fields <= 2);
-
-	// Add in additional arguments/parameters for record fields.
-	if ( num_fields == 1 )
-		full_params += ", field";
-	else if ( num_fields == 2 )
-		{
-		full_decl += ", int field2";
-		full_params += ", field1, field2";
 		}
 	}
 
@@ -1090,7 +1071,7 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval,
 		g->Gripe("assign-op should not have an \"eval\"", eval);
 
 	auto lhs_field = (oc[0] == ZAM_OC_ASSIGN_FIELD);
-	auto rhs_field = lhs_field && oc.size() > 2 && (oc[2] == ZAM_OC_INT);
+	auto rhs_field = lhs_field && oc.size() > 3 && (oc[3] == ZAM_OC_INT);
 	auto constant_op = (oc[1] == ZAM_OC_CONSTANT);
 
 	string rhs = constant_op ? "z.c" : "frame[z.v2]";
@@ -2003,7 +1984,6 @@ void ZAM_UnaryExprOpTemplate::BuildInstruction(const OCVec& oc,
 		type_src = constant_op ? "n" : "n1";
 		Emit("auto " + type_src + " = flhs->GetOp1()->AsNameExpr();");
 		Emit("auto t = flhs->GetType();");
-		Emit("int field = flhs->Field();");
 		}
 
 	else
@@ -2070,7 +2050,7 @@ void ZAM_AssignOpTemplate::Instantiate()
 	// Build constant/variable versions ...
 	ocs.push_back(ZAM_OC_CONSTANT);
 
-	if ( ocs[0] == ZAM_OC_RECORD_FIELD )
+	if ( ocs[0] == ZAM_OC_RECORD_FIELD || ocs[0] == ZAM_OC_ASSIGN_FIELD )
 		ocs.push_back(ZAM_OC_INT);
 
 	InstantiateOp(ocs, false);
