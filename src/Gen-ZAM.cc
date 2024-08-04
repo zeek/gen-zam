@@ -642,7 +642,7 @@ void ZAM_OpTemplate::InstantiateOp(const string& orig_method, const OCVec& oc_or
 		{
 		// Don't generate versions of these for constant operands
 		// as those don't exist.
-		if ( oc.size() != Arity() + 1 )
+		if ( int(oc.size()) != Arity() + 1 )
 			Gripe("vector class/arity mismatch");
 
 		if ( oc[1] == ZAM_OC_CONSTANT )

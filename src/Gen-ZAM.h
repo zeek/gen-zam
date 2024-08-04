@@ -10,6 +10,7 @@
 #pragma once
 
 #include <assert.h>
+#include <optional>
 #include <map>
 #include <set>
 #include <memory>
