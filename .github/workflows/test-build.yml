@@ -1,0 +1,33 @@
+name: Test Build
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+
+      - name: Fetch Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install \
+            bsdmainutils \
+            cmake \
+            g++ \
+            gcc \
+            git \
+            make
+
+      - name: Configure
+        run: ./configure
+
+      - name: Build
+        run: |
+          ( cd build && make )
