@@ -960,13 +960,15 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval, const 
 
         if ( lhs_field ) {
             Emit("auto r = frame[z.v1].AsRecord();");
-            Emit("auto& f = DirectField(r, z.v2);");
+            Emit("auto& f = DirectOptField(r, z.v2);");
+            Emit("zeek::Unref(f.GetZVal().ManagedVal());");
+            Emit("f.Set(ZVal(v.release()));");
         }
-        else
+        else {
             Emit("auto& f = frame[z.v1];");
-
-        Emit("zeek::Unref(f.ManagedVal());");
-        Emit("f = ZVal(v.release());");
+            Emit("zeek::Unref(f.ManagedVal());");
+            Emit("f = ZVal(v.release());");
+        }
     }
 
     else if ( rhs_field ) {
@@ -981,7 +983,7 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval, const 
         Emit("auto v = DirectOptField(" + rhs + ".AsRecord(), z.v" + to_string(rhs_offset) +
              "); // note, RHS field before LHS field\n");
 
-        Emit("if ( ! v )");
+        Emit("if ( ! v.IsSet() )");
         BeginBlock();
         Emit("ZAM_run_time_error(Z_LOC, \"field value missing\");");
         EndBlock();
@@ -990,14 +992,14 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval, const 
         BeginBlock();
         auto slot = "z.v" + to_string(lhs_offset);
         Emit("auto r = frame[z.v1].AsRecord();");
-        Emit("auto& f = DirectField(r, " + slot + "); // note, LHS field after RHS field\n");
+        Emit("auto& f = DirectOptField(r, " + slot + "); // note, LHS field after RHS field\n");
 
         if ( is_managed ) {
-            Emit("zeek::Ref((*v)" + acc + ");");
-            Emit("zeek::Unref(f.ManagedVal());");
+            Emit("zeek::Ref((v.GetZVal())" + acc + ");");
+            Emit("zeek::Unref(f.GetZVal().ManagedVal());");
         }
 
-        Emit("f = *v;");
+        Emit("f.Set(v.GetZVal());");
 
         if ( lhs_field )
             Emit("r->Modified();");
@@ -1013,12 +1015,12 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval, const 
             auto lhs_offset = constant_op ? 2 : 3;
             auto slot = "z.v" + to_string(lhs_offset);
             Emit("auto r = frame[z.v1].AsRecord();");
-            Emit("auto& f = DirectField(r, " + slot + ");");
+            Emit("auto& f = DirectOptField(r, " + slot + ");");
 
             if ( is_managed )
-                Emit("zeek::Unref(f.ManagedVal());");
+                Emit("zeek::Unref(f.GetZVal().ManagedVal());");
 
-            Emit("f = " + rhs + ";");
+            Emit("f.Set(" + rhs + ");");
             Emit("r->Modified();");
         }
 
