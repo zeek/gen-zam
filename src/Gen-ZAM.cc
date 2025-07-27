@@ -961,7 +961,6 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval, const 
         if ( lhs_field ) {
             Emit("auto r = frame[z.v1].AsRecord();");
             Emit("auto& f = DirectOptField(r, z.v2);");
-            Emit("zeek::Unref(f.GetZVal().ManagedVal());");
             Emit("f.Set(ZVal(v.release()));");
         }
         else {
@@ -994,10 +993,8 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval, const 
         Emit("auto r = frame[z.v1].AsRecord();");
         Emit("auto& f = DirectOptField(r, " + slot + "); // note, LHS field after RHS field\n");
 
-        if ( is_managed ) {
+        if ( is_managed )
             Emit("zeek::Ref((v.GetZVal())" + acc + ");");
-            Emit("zeek::Unref(f.GetZVal().ManagedVal());");
-        }
 
         Emit("f.Set(v.GetZVal());");
 
@@ -1016,10 +1013,6 @@ void ZAM_OpTemplate::GenAssignOpCore(const OCVec& oc, const string& eval, const 
             auto slot = "z.v" + to_string(lhs_offset);
             Emit("auto r = frame[z.v1].AsRecord();");
             Emit("auto& f = DirectOptField(r, " + slot + ");");
-
-            if ( is_managed )
-                Emit("zeek::Unref(f.GetZVal().ManagedVal());");
-
             Emit("f.Set(" + rhs + ");");
             Emit("r->Modified();");
         }
@@ -1558,7 +1551,7 @@ void ZAM_ExprOpTemplate::InstantiateEval(const OCVec& oc_orig, const string& suf
                 // are constants - those instead get folded.)
                 --f;
 
-            lhs = "DirectField(" + lhs + ".AsRecord(), z.v" + to_string(f) + ")";
+            lhs = "DirectFieldRef(" + lhs + ".AsRecord(), z.v" + to_string(f) + ")";
         }
     }
 
